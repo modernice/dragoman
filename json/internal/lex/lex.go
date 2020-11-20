@@ -221,18 +221,16 @@ func lexDocument(l *lexer) stateFunc {
 
 func lexIgnore(l *lexer) stateFunc {
 	l.skipWhitespace()
-	for {
-		r := l.next()
-		switch r {
-		case eof:
-			l.emitEOF()
-			return nil
-		case '"':
-			l.backup()
-			return lexProperty
-		default:
-			return lexIgnore
-		}
+	r := l.next()
+	switch r {
+	case eof:
+		l.emitEOF()
+		return nil
+	case '"':
+		l.backup()
+		return lexProperty
+	default:
+		return lexIgnore
 	}
 }
 
