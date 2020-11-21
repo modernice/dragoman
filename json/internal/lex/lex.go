@@ -1,7 +1,12 @@
 // Package lex provides a very basic JSON lexer.
-// The lexer only emits string values together with their positions in the
+// The lexer only emits strings together with their positions in the
 // JSON file and does not attempt to validate anything; it just searches for
-// string values.
+// strings.
+//
+// Under the hood, the lexer just searches for strings surrounded by double quotes (").
+// If the found string is followed by a colon (e.g. {"field": "value"})
+// or by some whitespace with a colon (e.g. {"field"   : "value"}),
+// then we know the string is a property key. Otherwise the string must be a value.
 package lex
 
 import (
@@ -270,8 +275,6 @@ L:
 		case '\\':
 			r = l.next()
 			switch r {
-			case '"':
-				continue L
 			case eof:
 				l.emitEOF()
 				return nil
