@@ -211,6 +211,39 @@ func TestReader(t *testing.T) {
 				{Type: lex.EOF, Pos: 73},
 			},
 		},
+		{
+			name: "nested object with mixed array, ugly",
+			input: `{  "nested": {"under"  : {
+				"person": {
+					"bob"  :{
+						"name": "Bob",
+
+						"age": 37,
+
+						"skills": ["cooking", "sleeping", -4.38, true, {
+							"name"  : "jumping",
+							"height":   1.2  ,
+						}],
+
+						"quotes": [
+							"Hello.",
+							"\"This\" is a word.",
+							"You're all terrible."
+						]
+					}
+				}
+			}  }}`,
+			expected: []lex.Token{
+				{Type: lex.String, Pos: 72, Value: `"Bob"`},
+				{Type: lex.String, Pos: 115, Value: `"cooking"`},
+				{Type: lex.String, Pos: 126, Value: `"sleeping"`},
+				{Type: lex.String, Pos: 170, Value: `"jumping"`},
+				{Type: lex.String, Pos: 243, Value: `"Hello."`},
+				{Type: lex.String, Pos: 260, Value: `"\"This\" is a word."`},
+				{Type: lex.String, Pos: 290, Value: `"You're all terrible."`},
+				{Type: lex.EOF, Pos: 342},
+			},
+		},
 	}
 
 	for _, test := range tests {

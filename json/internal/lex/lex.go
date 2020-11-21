@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -105,6 +106,10 @@ func (l *lexer) backup() {
 	l.bufPos -= l.width
 }
 
+func (l *lexer) advance(n int) {
+	l.bufPos += n
+}
+
 func (l *lexer) next() (r rune) {
 	for l.bufPos >= len(l.bufferedInput) {
 		err := l.readRune()
@@ -143,19 +148,22 @@ func (l *lexer) readRune() error {
 	return nil
 }
 
-func (l *lexer) skipWhitespace() {
+func (l *lexer) skipWhitespace() int {
+	var skipped int
 	for {
 		r := l.next()
 		if r == eof {
 			l.backup()
 			break
 		}
+		skipped++
 
 		if !unicode.IsSpace(r) {
 			l.backup()
 			break
 		}
 	}
+	return skipped
 }
 
 func (l *lexer) errorf(format string, args ...interface{}) stateFunc {
@@ -194,163 +202,111 @@ func (l *lexer) must(r rune) (rune, bool) {
 	return n, true
 }
 
+func (l *lexer) skipUntil(find ...rune) (rune, bool) {
+	for {
+		n := l.next()
+		if n == eof {
+			return n, false
+		}
+		for _, r := range find {
+			if r == n {
+				return n, true
+			}
+		}
+	}
+}
+
+func (l *lexer) hasPrefix(prefix string) bool {
+	for len(prefix) > len(l.bufferedInput[l.bufPos:]) {
+		err := l.readRune()
+		if err == nil {
+			continue
+		}
+
+		if errors.Is(err, io.EOF) {
+			break
+		}
+
+		l.tokens <- Token{
+			Type:  Error,
+			Value: (fmt.Errorf("has prefix: %w", err)).Error(),
+		}
+		return false
+	}
+
+	return strings.HasPrefix(l.bufferedInput[l.bufPos:], prefix)
+}
+
 func (l *lexer) lex() {
 	defer close(l.tokens)
-	for state := lexDocument; state != nil; {
+	for state := lexString; state != nil; {
 		state = state(l)
 	}
 }
 
 type stateFunc func(*lexer) stateFunc
 
-func lexDocument(l *lexer) stateFunc {
-	l.skipWhitespace()
-
-	r := l.next()
-	switch r {
-	case '"': // document is just a string
-		l.backup()
-		return lexString
-	case '[':
-		l.backup()
-		return lexArray
-	}
-
-	return lexIgnore
-}
-
-func lexIgnore(l *lexer) stateFunc {
-	l.skipWhitespace()
-	r := l.next()
-	switch r {
-	case eof:
+func lexString(l *lexer) stateFunc {
+	// skip until we find a double quote (string delimiter)
+	r, ok := l.skipUntil('"')
+	if !ok {
 		l.emitEOF()
 		return nil
-	case '"':
-		l.backup()
-		return lexProperty
-	default:
-		return lexIgnore
 	}
-}
+	l.backup()
+	l.ignore()
+	l.advance(1)
 
-func lexProperty(l *lexer) stateFunc {
-	r := l.next()
-	switch r {
-	case '"':
-		l.backup()
-		return lexPropertyName
-	default:
-		l.backup()
-		l.invalid(r, '"')
-		return nil
-	}
-}
-
-func lexPropertyName(l *lexer) stateFunc {
-	r, ok := l.must('"')
-	if !ok {
-		return nil
-	}
-
+	// find the closing double quote
+L:
 	for {
-		r = l.next()
+		r, ok = l.skipUntil('"', '\\')
+		if !ok {
+			l.emitEOF()
+			return nil
+		}
+
 		switch r {
 		case '\\':
-			r = l.next() // don't check the escaped character
-			break
-		case '"':
-			l.skipWhitespace()
-			r = l.next()
-			if r != ':' {
-				l.backup()
-				l.invalid(r, ':')
-				return nil
-			}
-			l.skipWhitespace()
-
 			r = l.next()
 			switch r {
 			case '"':
-				l.backup()
-				l.ignore()
-				return lexString
-			case '[':
-				l.backup()
-				return lexArray
+				continue L
+			case eof:
+				l.emitEOF()
+				return nil
 			default:
-				return lexIgnore
+				continue L
 			}
-		case eof:
-			l.invalid(eof)
-			return nil
-		}
-	}
-}
-
-func lexString(l *lexer) stateFunc {
-	r, ok := l.must('"')
-	if !ok {
-		return nil
-	}
-
-	for {
-		r = l.next()
-
-		switch r {
-		case '\\':
-			r = l.next()
-			break
 		case '"':
-			l.emit(String)
-			return lexIgnore
+			break L
 		case eof:
-			l.backup()
-			l.invalid(eof)
+			l.emitEOF()
 			return nil
 		}
 	}
-}
 
-func lexArray(l *lexer) stateFunc {
-	r, ok := l.must('[')
-	if !ok {
-		return nil
-	}
+	// Here we check if the string is a property key.
+	// If the string is not followed by a colon (preceding whitespaces allowed),
+	// then it's not a key and we can emit it as a string value.
+	// Otherwise we just lex the next string.
+
+	// store the currently buffered string, so we can emit it at a later time
+	str := l.bufferedInput[:l.bufPos]
+	pos := l.pos() - len(str)
+
 	l.skipWhitespace()
-
 	r = l.next()
 	switch r {
-	case '"':
-		l.backup()
-		l.ignore()
-		return lexArrayString
+	case ':': // str is a property key, so we just lex the next string
+		return lexString
 	default:
 		l.backup()
-		return lexIgnore
-	}
-}
-
-func lexArrayString(l *lexer) stateFunc {
-	if lexString(l) == nil {
-		return nil
-	}
-
-	l.skipWhitespace()
-	r := l.next()
-	switch r {
-	case ',':
-		l.skipWhitespace()
-		r = l.next()
-		switch r {
-		case '"':
-			l.backup()
-			l.ignore()
-			return lexArrayString
-		default:
-			return lexIgnore
+		l.tokens <- Token{
+			Pos:   pos,
+			Type:  String,
+			Value: str,
 		}
-	default:
-		return lexIgnore
+		return lexString
 	}
 }
