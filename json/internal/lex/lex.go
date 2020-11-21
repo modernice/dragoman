@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -219,27 +218,6 @@ func (l *lexer) skipUntil(find ...rune) (rune, bool) {
 			}
 		}
 	}
-}
-
-func (l *lexer) hasPrefix(prefix string) bool {
-	for len(prefix) > len(l.bufferedInput[l.bufPos:]) {
-		err := l.readRune()
-		if err == nil {
-			continue
-		}
-
-		if errors.Is(err, io.EOF) {
-			break
-		}
-
-		l.tokens <- Token{
-			Type:  Error,
-			Value: (fmt.Errorf("has prefix: %w", err)).Error(),
-		}
-		return false
-	}
-
-	return strings.HasPrefix(l.bufferedInput[l.bufPos:], prefix)
 }
 
 func (l *lexer) lex() {
