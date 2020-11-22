@@ -53,7 +53,7 @@ func Regexp(expr *regexp.Regexp, text string) (parts []string, items []Item) {
 //     []string{"Hello ", ", how are you ", "?"},
 //     []preserve.Item{
 //       {Text: "Bob", Index: 1},
-//		 {Text: "today", Index: 2},
+//       {Text: "today", Index: 2},
 //     },
 //   )
 //   // result: "Hello Bob, how are you today?"
