@@ -53,7 +53,7 @@ func (t *Translator) Translate(
 	defer cancel()
 
 	ranges, rangeErrs := ranger.Ranges(ctx, input)
-	translatedRanges, translateRangeErrs := t.goTranslateRanges(ctx, cfg, ranges, inputText, sourceLang, targetLang)
+	translatedRanges, translateRangeErrs := t.translateRanges(ctx, cfg, ranges, inputText, sourceLang, targetLang)
 
 	var translations []translatedRange
 
@@ -113,7 +113,7 @@ type translateConfig struct {
 	preserve *regexp.Regexp
 }
 
-func (t *Translator) goTranslateRanges(
+func (t *Translator) translateRanges(
 	ctx context.Context,
 	cfg translateConfig,
 	ranges <-chan text.Range,
