@@ -11,8 +11,11 @@ import (
 // Ranger analyzes inputs and returns the ranges, that need to be translated.
 type Ranger interface {
 	// Ranges returns a channel of text ranges, that need to be translated.
+	//
 	// Errors that occur during the scan of the input, should be reported
 	// through the error channel.
+	//
+	// The Ranger is responsible for closing the Range channel when it's done.
 	Ranges(context.Context, io.Reader) (<-chan Range, <-chan error)
 }
 

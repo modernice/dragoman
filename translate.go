@@ -62,7 +62,11 @@ L:
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case err := <-rangeErrs:
+		case err, ok := <-rangeErrs:
+			if !ok {
+				rangeErrs = nil
+				break
+			}
 			return nil, fmt.Errorf("get ranges: %w", err)
 		case err := <-translateRangeErrs:
 			return nil, err
