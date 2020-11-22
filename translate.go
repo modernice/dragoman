@@ -1,17 +1,22 @@
 package translator
 
+//go:generate mockgen -source=translate.go -destination=./mocks/translate.go
+
 import (
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"regexp"
+	"sync"
 
 	"github.com/bounoable/translator/text"
 	"github.com/bounoable/translator/text/preserve"
 )
 
-//go:generate mockgen -source=translate.go -destination=./mocks/translate.go
+var (
+	defaultTranslateConfig = translateConfig{parallel: 1}
+)
 
 // New returns a structured-text translator.
 func New(service Service) *Translator {
@@ -38,7 +43,7 @@ func (t *Translator) Translate(
 	ranger text.Ranger,
 	opts ...TranslateOption,
 ) ([]byte, error) {
-	var cfg translateConfig
+	cfg := defaultTranslateConfig
 	for _, opt := range opts {
 		opt(&cfg)
 	}
@@ -68,7 +73,11 @@ L:
 				break
 			}
 			return nil, fmt.Errorf("get ranges: %w", err)
-		case err := <-translateRangeErrs:
+		case err, ok := <-translateRangeErrs:
+			if !ok {
+				translateRangeErrs = nil
+				break
+			}
 			return nil, err
 		case tr, open := <-translatedRanges:
 			if !open {
@@ -113,8 +122,16 @@ func Preserve(expr *regexp.Regexp) TranslateOption {
 	}
 }
 
+// Parallel sets the maximum number of parallel translation requests.
+func Parallel(n int) TranslateOption {
+	return func(cfg *translateConfig) {
+		cfg.parallel = n
+	}
+}
+
 type translateConfig struct {
 	preserve *regexp.Regexp
+	parallel int
 }
 
 func (t *Translator) translateRanges(
@@ -126,48 +143,80 @@ func (t *Translator) translateRanges(
 	translated := make(chan translatedRange, len(ranges))
 	errs := make(chan *translateRangeError, len(ranges))
 
+	workers := cfg.parallel
+	if workers < 0 {
+		workers = 0
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(workers)
+
 	go func() {
 		defer close(translated)
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case r, ok := <-ranges:
-				if !ok {
-					return
-				}
-
-				extracted, err := text.Extract(input, r)
-				if err != nil {
-					errs <- &translateRangeError{r: r, err: fmt.Errorf("extract range: %w", err)}
-					break
-				}
-
-				parts := []string{extracted}
-				var preserved []preserve.Item
-
-				if cfg.preserve != nil {
-					parts, preserved = preserve.Regexp(cfg.preserve, extracted)
-				}
-
-				for i, part := range parts {
-					translated, err := t.service.Translate(ctx, part, sourceLang, targetLang)
-					if err != nil {
-						errs <- &translateRangeError{r: r, err: err}
-						break
-					}
-					parts[i] = translated
-				}
-
-				translated <- translatedRange{
-					r:    r,
-					text: preserve.Join(parts, preserved),
-				}
-			}
-		}
+		defer close(errs)
+		wg.Wait()
 	}()
 
+	for i := 0; i < workers; i++ {
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case r, ok := <-ranges:
+					if !ok {
+						return
+					}
+
+					t, err := t.translateRange(ctx, cfg, r, input, sourceLang, targetLang)
+					if err != nil {
+						errs <- &translateRangeError{
+							r:   r,
+							err: err,
+						}
+						break
+					}
+
+					translated <- translatedRange{
+						r:    r,
+						text: t,
+					}
+				}
+			}
+		}()
+	}
+
 	return translated, errs
+}
+
+func (t *Translator) translateRange(
+	ctx context.Context,
+	cfg translateConfig,
+	r text.Range,
+	input, sourceLang, targetLang string,
+) (string, error) {
+	extracted, err := text.Extract(input, r)
+	if err != nil {
+		return "", fmt.Errorf("extract range: %w", err)
+	}
+
+	parts := []string{extracted}
+	var preserved []preserve.Item
+
+	if cfg.preserve != nil {
+		parts, preserved = preserve.Regexp(cfg.preserve, extracted)
+	}
+
+	for i, part := range parts {
+		translated, err := t.service.Translate(ctx, part, sourceLang, targetLang)
+		if err != nil {
+			return "", fmt.Errorf("translate: %w", err)
+		}
+		parts[i] = translated
+	}
+
+	return preserve.Join(parts, preserved), nil
 }
 
 type translatedRange struct {

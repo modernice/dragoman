@@ -5,7 +5,9 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/bounoable/translator"
 	mock_translator "github.com/bounoable/translator/mocks"
@@ -99,6 +101,88 @@ func TestTranslator_Translate(t *testing.T) {
 			}))
 		})
 	})
+
+	Convey("Feature: parallel translations", t, func() {
+		ctrl := gomock.NewController(t)
+		Reset(ctrl.Finish)
+
+		Convey("Given a JSON file with 2 ranges", func() {
+			input := strings.NewReader(`{
+	"title": "Hello, {firstName}, how are you {day}?",
+	"description": "This is a sentence with a {placeholder} variable."
+}`)
+			expr := regexp.MustCompile("{[a-z-A-Z0-9]+?}")
+			sourceLang := "EN"
+			targetLang := "DE"
+
+			Convey("Given a text ranger", WithRanges(ctrl, []text.Range{{13, 51}, {71, 120}}, func(ranger text.Ranger) {
+				Convey("When the `Parallel()` option is not used", WithParallelTranslations(
+					ctrl,
+					time.Millisecond*200,
+					func(svc translator.Service, maxActive *int64) {
+						trans := translator.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr))
+
+						Convey("Only 1 translations should have been active at a time", func() {
+							So(*maxActive, ShouldEqual, 1)
+						})
+					}),
+				)
+
+				Convey("When the `Parallel(1)` option is used", WithParallelTranslations(
+					ctrl,
+					time.Millisecond*200,
+					func(svc translator.Service, maxActive *int64) {
+						trans := translator.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(1))
+
+						Convey("Only 1 translations should have been active at a time", func() {
+							So(*maxActive, ShouldEqual, 1)
+						})
+					}),
+				)
+
+				Convey("When the `Parallel(2)` option is used", WithParallelTranslations(
+					ctrl,
+					time.Millisecond*200,
+					func(svc translator.Service, maxActive *int64) {
+						trans := translator.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(2))
+
+						Convey("2 translations should have been active at a time", func() {
+							So(*maxActive, ShouldEqual, 2)
+						})
+					}),
+				)
+
+				Convey("When the `Parallel(0)` option is used", WithParallelTranslations(
+					ctrl,
+					time.Millisecond*200,
+					func(svc translator.Service, maxActive *int64) {
+						trans := translator.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(0))
+
+						Convey("no translation should have been made", func() {
+							So(*maxActive, ShouldEqual, 0)
+						})
+					}),
+				)
+
+				Convey("When `Parallel()` option is used with a negative value", WithParallelTranslations(
+					ctrl,
+					time.Millisecond*500,
+					func(svc translator.Service, maxActive *int64) {
+						trans := translator.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(-1))
+
+						Convey("no translation should have been made", func() {
+							So(*maxActive, ShouldEqual, 0)
+						})
+					}),
+				)
+			}))
+		})
+	})
 }
 
 func WithRanges(ctrl *gomock.Controller, ranges []text.Range, f func(text.Ranger)) func() {
@@ -108,27 +192,60 @@ func WithRanges(ctrl *gomock.Controller, ranges []text.Range, f func(text.Ranger
 			Ranges(gomock.Any(), gomock.Any()).
 			DoAndReturn(func(context.Context, io.Reader) (<-chan text.Range, <-chan error) {
 				result := make(chan text.Range, len(ranges))
-				for _, r := range ranges {
-					result <- r
-				}
-				close(result)
+				go func() {
+					defer close(result)
+					for _, r := range ranges {
+						result <- r
+					}
+				}()
 				return result, make(chan error)
 			})
 		f(ranger)
 	}
 }
 
-func WithTranslations(ctrl *gomock.Controller, sourceLang, targetLang string, m map[string]string, f func(translator.Service)) func() {
+func WithTranslations(
+	ctrl *gomock.Controller,
+	sourceLang, targetLang string,
+	m map[string]string,
+	f func(translator.Service),
+) func() {
 	return func() {
 		svc := mock_translator.NewMockService(ctrl)
 		for i, o := range m {
-			o := o
 			svc.EXPECT().
 				Translate(gomock.Any(), i, sourceLang, targetLang).
-				DoAndReturn(func(context.Context, string, string, string) (string, error) {
-					return o, nil
-				})
+				Return(o, nil)
 		}
 		f(svc)
+	}
+}
+
+func WithParallelTranslations(
+	ctrl *gomock.Controller,
+	d time.Duration,
+	f func(translator.Service, *int64),
+) func() {
+	return func() {
+		var active int64
+		var maxActive int64
+		svc := mock_translator.NewMockService(ctrl)
+
+		svc.EXPECT().
+			Translate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			DoAndReturn(func(context.Context, string, string, string) (string, error) {
+				a := atomic.AddInt64(&active, 1)
+				defer atomic.AddInt64(&active, -1)
+
+				if a > atomic.LoadInt64(&maxActive) {
+					atomic.StoreInt64(&maxActive, a)
+				}
+
+				time.Sleep(d)
+				return "", nil
+			}).
+			AnyTimes()
+
+		f(svc, &maxActive)
 	}
 }
