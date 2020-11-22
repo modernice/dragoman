@@ -1,7 +1,6 @@
 // Package lex provides a very basic JSON lexer.
 // The lexer only emits strings together with their positions in the
-// JSON file and does not attempt to validate anything; it just searches for
-// strings.
+// JSON file and does not attempt to validate anything; it just searches for strings.
 //
 // Under the hood, the lexer just searches for strings surrounded by double quotes (").
 // If the found string is followed by a colon (e.g. {"field": "value"})

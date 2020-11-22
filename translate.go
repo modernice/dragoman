@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"regexp"
 
 	"github.com/bounoable/translator/text"
+	"github.com/bounoable/translator/text/preserve"
 )
 
 //go:generate mockgen -source=translate.go -destination=./mocks/translate.go
@@ -34,7 +36,13 @@ func (t *Translator) Translate(
 	input io.Reader,
 	sourceLang, targetLang string,
 	ranger text.Ranger,
+	opts ...TranslateOption,
 ) ([]byte, error) {
+	var cfg translateConfig
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
 	inputBytes, err := ioutil.ReadAll(input)
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
@@ -45,7 +53,7 @@ func (t *Translator) Translate(
 	defer cancel()
 
 	ranges, rangeErrs := ranger.Ranges(ctx, input)
-	translatedRanges, translateRangeErrs := t.goTranslateRanges(ctx, ranges, inputText, sourceLang, targetLang)
+	translatedRanges, translateRangeErrs := t.goTranslateRanges(ctx, cfg, ranges, inputText, sourceLang, targetLang)
 
 	var translations []translatedRange
 
@@ -82,8 +90,32 @@ L:
 	return []byte(result), nil
 }
 
+// A TranslateOption configures the translation behavior.
+type TranslateOption func(*translateConfig)
+
+// Preserve (prevent translation of) strings that match the given expr.
+//
+// A typical use case are placeholder variables. Example:
+//   r, err := t.Translate(
+//     context.TODO(),
+//	   "Hello, {firstName}!",
+//	   "EN", "DE",
+//     translator.Preserve(regexp.MustCompile(`{[a-zA-Z0-9]+?}`)),
+//   )
+//   // r: "Hallo, {firstName}!"
+func Preserve(expr *regexp.Regexp) TranslateOption {
+	return func(cfg *translateConfig) {
+		cfg.preserve = expr
+	}
+}
+
+type translateConfig struct {
+	preserve *regexp.Regexp
+}
+
 func (t *Translator) goTranslateRanges(
 	ctx context.Context,
+	cfg translateConfig,
 	ranges <-chan text.Range,
 	input, sourceLang, targetLang string,
 ) (<-chan translatedRange, <-chan *translateRangeError) {
@@ -107,15 +139,25 @@ func (t *Translator) goTranslateRanges(
 					break
 				}
 
-				result, err := t.service.Translate(ctx, extracted, sourceLang, targetLang)
-				if err != nil {
-					errs <- &translateRangeError{r: r, err: err}
-					break
+				parts := []string{extracted}
+				var preserved []preserve.Item
+
+				if cfg.preserve != nil {
+					parts, preserved = preserve.Regexp(cfg.preserve, extracted)
+				}
+
+				for i, part := range parts {
+					translated, err := t.service.Translate(ctx, part, sourceLang, targetLang)
+					if err != nil {
+						errs <- &translateRangeError{r: r, err: err}
+						break
+					}
+					parts[i] = translated
 				}
 
 				translated <- translatedRange{
 					r:    r,
-					text: result,
+					text: preserve.Join(parts, preserved),
 				}
 			}
 		}

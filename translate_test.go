@@ -1,118 +1,134 @@
 package translator_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"io"
-	"io/ioutil"
-	"os"
+	"regexp"
+	"strings"
+	"testing"
 
 	"github.com/bounoable/translator"
 	mock_translator "github.com/bounoable/translator/mocks"
 	"github.com/bounoable/translator/text"
 	mock_text "github.com/bounoable/translator/text/mocks"
 	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
-var _ = Describe("Translator.Translate", func() {
-	var (
-		ctrl            *gomock.Controller
-		service         *mock_translator.MockService
-		provider        *mock_text.MockRanger
-		trans           *translator.Translator
-		source          io.Reader
-		sourceLang      string
-		targetLang      string
-		translateResult []byte
-		translateError  error
-	)
+func TestTranslator_Translate(t *testing.T) {
+	Convey("Feature: translate JSON", t, func() {
+		ctrl := gomock.NewController(t)
+		Reset(ctrl.Finish)
 
-	BeforeEach(func() {
-		ctrl = gomock.NewController(GinkgoT())
-		service = mock_translator.NewMockService(ctrl)
-		provider = mock_text.NewMockRanger(ctrl)
-		trans = translator.New(service)
-		source = nil
-		sourceLang = "EN"
-		targetLang = "DE"
-		translateResult = nil
-		translateError = nil
+		Convey("Given a plain JSON file", func() {
+			input := strings.NewReader(`{
+	"title": "This is a title.",
+	"description": "This is a description."
+}`)
+
+			Convey(
+				"When the text gets translated",
+				WithRanges(ctrl, []text.Range{
+					{13, 29}, // "This is a title."
+					{49, 71}, // "This is a description."
+				}, func(ranger text.Ranger) {
+					WithTranslations(ctrl, "EN", "DE", map[string]string{
+						"This is a title.":       "Dies ist ein Titel.",
+						"This is a description.": "Dies ist eine Beschreibung.",
+					}, func(svc translator.Service) {
+						trans := translator.New(svc)
+						result, err := trans.Translate(context.Background(), input, "EN", "DE", ranger)
+
+						Convey("There should be no error", func() {
+							So(err, ShouldBeNil)
+						})
+
+						Convey("The string values should be translated", func() {
+							So(string(result), ShouldEqual, `{
+	"title": "Dies ist ein Titel.",
+	"description": "Dies ist eine Beschreibung."
+}`)
+						})
+					})()
+				}),
+			)
+		})
+
+		Convey("Given a JSON file with placeholders", func() {
+			input := strings.NewReader(`{
+	"title": "Hello, {firstName}, how are you {day}?",
+	"description": "This is a sentence with a {placeholder} variable."
+}`)
+
+			Convey("Given a JSON ranger", WithRanges(ctrl, []text.Range{
+				{13, 51},  // "Hello, {firstName}, how are you {day}?"
+				{71, 120}, // "This is a sentence with a {placeholder} variable."
+			}, func(ranger text.Ranger) {
+				Convey("When the text gets translated with the `Preserve()` option", WithTranslations(
+					ctrl, "EN", "DE",
+					map[string]string{
+						"Hello, ":                    "Hallo, ",
+						", how are you ":             ", wie geht es Ihnen ",
+						"?":                          "?",
+						"This is a sentence with a ": "Dies ist ein Satz mit einer ",
+						" variable.":                 " Variable.",
+					},
+					func(svc translator.Service) {
+						trans := translator.New(svc)
+						result, err := trans.Translate(
+							context.Background(),
+							input,
+							"EN",
+							"DE",
+							ranger,
+							translator.Preserve(regexp.MustCompile("{[a-zA-Z]+?}")),
+						)
+
+						Convey("There should be no error", func() {
+							So(err, ShouldBeNil)
+						})
+
+						Convey("The string values should be translated, but the placeholders not", func() {
+							So(string(result), ShouldEqual, `{
+	"title": "Hallo, {firstName}, wie geht es Ihnen {day}?",
+	"description": "Dies ist ein Satz mit einer {placeholder} Variable."
+}`)
+						})
+					},
+				))
+			}))
+		})
 	})
+}
 
-	AfterEach(func() {
-		defer ctrl.Finish()
-	})
-
-	JustBeforeEach(func(done Done) {
-		translateResult, translateError = trans.Translate(
-			context.Background(),
-			source,
-			sourceLang,
-			targetLang,
-			provider,
-		)
-		close(done)
-	})
-
-	Context("plain json", func() {
-		setupJSONTest(&source, "./testdata/json/plain.json")
-
-		BeforeEach(func() {
-			By("calling the ranger to get the ranges that need to be translated", func() {
-				provider.EXPECT().
-					Ranges(gomock.Any(), gomock.Any()).
-					DoAndReturn(func(context.Context, io.Reader) (<-chan text.Range, <-chan error) {
-						ranges := make(chan text.Range, 2)
-						ranges <- text.Range{14, 30} // "This is a title."
-						ranges <- text.Range{51, 73} // "This is a description."
-						close(ranges)
-						return ranges, make(chan error)
-					})
+func WithRanges(ctrl *gomock.Controller, ranges []text.Range, f func(text.Ranger)) func() {
+	return func() {
+		ranger := mock_text.NewMockRanger(ctrl)
+		ranger.EXPECT().
+			Ranges(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(context.Context, io.Reader) (<-chan text.Range, <-chan error) {
+				result := make(chan text.Range, len(ranges))
+				for _, r := range ranges {
+					result <- r
+				}
+				close(result)
+				return result, make(chan error)
 			})
+		f(ranger)
+	}
+}
 
-			By("translating the text in those ranges through the translator service", func() {
-				service.EXPECT().
-					Translate(gomock.Any(), "This is a title.", sourceLang, targetLang).
-					Return("Dies ist ein Titel.", nil)
-
-				service.EXPECT().
-					Translate(gomock.Any(), "This is a description.", sourceLang, targetLang).
-					Return("Dies ist eine Beschreibung.", nil)
-			})
-		})
-
-		It("doesn't return an error", func() {
-			Ω(translateError).ShouldNot(HaveOccurred())
-		})
-
-		It("translates just the JSON values", func() {
-			type document struct {
-				Title       string `json:"title"`
-				Description string `json:"description"`
-			}
-
-			var doc document
-			err := json.Unmarshal(translateResult, &doc)
-			Ω(err).ShouldNot(HaveOccurred())
-
-			Ω(doc.Title).Should(Equal("Dies ist ein Titel."))
-			Ω(doc.Description).Should(Equal("Dies ist eine Beschreibung."))
-		})
-	})
-})
-
-func setupJSONTest(source *io.Reader, path string) {
-	BeforeEach(func() {
-		f, err := os.Open(path)
-		defer f.Close()
-		Ω(err).ShouldNot(HaveOccurred())
-
-		b, err := ioutil.ReadAll(f)
-		Ω(err).ShouldNot(HaveOccurred())
-
-		*source = bytes.NewReader(b)
-	})
+func WithTranslations(ctrl *gomock.Controller, sourceLang, targetLang string, m map[string]string, f func(translator.Service)) func() {
+	return func() {
+		svc := mock_translator.NewMockService(ctrl)
+		for i, o := range m {
+			o := o
+			svc.EXPECT().
+				Translate(gomock.Any(), i, sourceLang, targetLang).
+				DoAndReturn(func(context.Context, string, string, string) (string, error) {
+					return o, nil
+				})
+		}
+		f(svc)
+	}
 }
