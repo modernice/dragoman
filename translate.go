@@ -212,6 +212,9 @@ func (t *Translator) translateRange(
 	}
 
 	for i, part := range parts {
+		if isPunctuation(part) {
+			continue
+		}
 		translated, err := t.service.Translate(ctx, part, sourceLang, targetLang)
 		if err != nil {
 			return "", fmt.Errorf("translate: %w", err)
@@ -220,6 +223,14 @@ func (t *Translator) translateRange(
 	}
 
 	return preserve.Join(parts, preserved), nil
+}
+
+var (
+	punctRE = regexp.MustCompile(`^[[:punct:]]+$`)
+)
+
+func isPunctuation(s string) bool {
+	return punctRE.MatchString(s)
 }
 
 type translatedRange struct {

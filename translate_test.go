@@ -71,7 +71,6 @@ func TestTranslator_Translate(t *testing.T) {
 					map[string]string{
 						"Hello, ":                    "Hallo, ",
 						", how are you ":             ", wie geht es Ihnen ",
-						"?":                          "?",
 						"This is a sentence with a ": "Dies ist ein Satz mit einer ",
 						" variable.":                 " Variable.",
 					},
@@ -180,6 +179,25 @@ func TestTranslator_Translate(t *testing.T) {
 						})
 					}),
 				)
+			}))
+		})
+	})
+
+	Convey("Punctuation handling", t, func() {
+		ctrl := gomock.NewController(t)
+		Reset(ctrl.Finish)
+
+		Convey("Given an input that's only punctuation", func() {
+			input := "!-/:-@[-`{-~" // [[:punct:]] named ASCII character class
+
+			Convey("And a text ranger", WithRanges(ctrl, []text.Range{{0, 12}}, func(ranger text.Ranger) {
+				Convey("Then no translation request should be made", WithTranslations(ctrl, "", "", map[string]string{}, func(svc translator.Service) {
+					trans := translator.New(svc)
+					res, err := trans.Translate(context.Background(), strings.NewReader(input), "EN", "DE", ranger)
+
+					So(err, ShouldBeNil)
+					So(string(res), ShouldEqual, input)
+				}))
 			}))
 		})
 	})
