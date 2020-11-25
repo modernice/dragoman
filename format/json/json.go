@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bounoable/dragoman/json/internal/lex"
+	"github.com/bounoable/dragoman/format/json/internal/lex"
 	"github.com/bounoable/dragoman/text"
 )
 

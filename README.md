@@ -78,7 +78,7 @@ translate FORMAT SOURCE CONTENT -opt1 -opt2 ...
 ```go
 import (
   "github.com/bounoable/dragoman"
-  "github.com/bounoable/dragoman/json"
+  "github.com/bounoable/dragoman/format/json"
   "github.com/bounoable/dragoman/service/deepl"
 )
 

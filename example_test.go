@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/bounoable/dragoman"
-	"github.com/bounoable/dragoman/json"
+	"github.com/bounoable/dragoman/format/json"
 	"github.com/bounoable/dragoman/service/deepl"
 )
 

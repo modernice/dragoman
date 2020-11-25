@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bounoable/dragoman/json"
+	"github.com/bounoable/dragoman/format/json"
 	"github.com/bounoable/dragoman/text"
 	"github.com/stretchr/testify/assert"
 )
