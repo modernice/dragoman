@@ -6,6 +6,7 @@ package deepl
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/bounoable/deepl"
 )
@@ -84,11 +85,11 @@ type Service struct {
 // Translate translates the given text from sourceLang to targetLang.
 func (svc *Service) Translate(ctx context.Context, text, sourceLang, targetLang string) (string, error) {
 	opts := append([]deepl.TranslateOption{
-		deepl.SourceLang(deepl.Language(sourceLang)),
+		deepl.SourceLang(deepl.Language(strings.ToUpper(sourceLang))),
 		deepl.PreserveFormatting(true),
 	}, svc.translateOpts...)
 
-	translated, _, err := svc.client.Translate(ctx, text, deepl.Language(targetLang), opts...)
+	translated, _, err := svc.client.Translate(ctx, text, deepl.Language(strings.ToUpper(targetLang)), opts...)
 	if err != nil {
 		return translated, fmt.Errorf("deepl translate: %w", err)
 	}

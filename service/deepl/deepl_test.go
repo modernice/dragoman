@@ -75,7 +75,7 @@ func TestService_Translate(t *testing.T) {
 	assert.Equal(t, "1", usedURLValues.Get("preserve_formatting"))
 }
 
-func TestTranslate_withTranslateOptions(t *testing.T) {
+func TestService_Translate_withTranslateOptions(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -105,6 +105,26 @@ func TestTranslate_withTranslateOptions(t *testing.T) {
 	assert.Equal(t, "0", usedURLValues.Get("preserve_formatting"))
 	assert.Equal(t, "more", usedURLValues.Get("formality"))
 	assert.Equal(t, "nonewlines", usedURLValues.Get("split_sentences"))
+}
+
+func TestService_Translate_languageNormalization(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	client := mock_deepl.NewMockClient(ctrl)
+	svc := deeplsvc.NewWithClient(client)
+
+	text := "This is a sentence."
+	sourceLang := "en"
+	targetLang := "de"
+
+	usedURLValues := expectClientTranslate(client, text, "EN", "DE")
+
+	_, err := svc.Translate(context.Background(), text, sourceLang, targetLang)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "EN", usedURLValues.Get("source_lang"))
+	assert.Equal(t, "DE", usedURLValues.Get("target_lang"))
 }
 
 func expectClientTranslate(client *mock_deepl.MockClient, text, sourceLang, targetLang string) url.Values {
