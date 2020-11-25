@@ -73,7 +73,7 @@ func TestService_Translate(t *testing.T) {
 	assert.Equal(t, sourceLang, usedURLValues.Get("source_lang"))
 	assert.Equal(t, targetLang, usedURLValues.Get("target_lang"))
 	assert.Equal(t, "1", usedURLValues.Get("preserve_formatting"))
-	assert.Equal(t, "0", usedURLValues.Get("split_sentences"))
+	assert.Equal(t, "nonewlines", usedURLValues.Get("split_sentences"))
 }
 
 func TestService_Translate_withTranslateOptions(t *testing.T) {
@@ -82,7 +82,7 @@ func TestService_Translate_withTranslateOptions(t *testing.T) {
 
 	client := mock_deepl.NewMockClient(ctrl)
 	opts := []deepl.TranslateOption{
-		deepl.SplitSentences(deepl.SplitNoNewlines),
+		deepl.SplitSentences(deepl.SplitNone),
 		deepl.Formality(deepl.MoreFormal),
 		deepl.PreserveFormatting(false),
 	}
@@ -105,7 +105,7 @@ func TestService_Translate_withTranslateOptions(t *testing.T) {
 	assert.Equal(t, targetLang, usedURLValues.Get("target_lang"))
 	assert.Equal(t, "0", usedURLValues.Get("preserve_formatting"))
 	assert.Equal(t, "more", usedURLValues.Get("formality"))
-	assert.Equal(t, "nonewlines", usedURLValues.Get("split_sentences"))
+	assert.Equal(t, "0", usedURLValues.Get("split_sentences"))
 }
 
 func TestService_Translate_languageNormalization(t *testing.T) {

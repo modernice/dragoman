@@ -87,7 +87,7 @@ func (svc *Service) Translate(ctx context.Context, text, sourceLang, targetLang 
 	opts := append([]deepl.TranslateOption{
 		deepl.SourceLang(deepl.Language(strings.ToUpper(sourceLang))),
 		deepl.PreserveFormatting(true),
-		deepl.SplitSentences(deepl.SplitNone),
+		deepl.SplitSentences(deepl.SplitNoNewlines),
 	}, svc.translateOpts...)
 
 	translated, _, err := svc.client.Translate(ctx, text, deepl.Language(strings.ToUpper(targetLang)), opts...)
