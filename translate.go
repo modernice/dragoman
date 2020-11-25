@@ -3,6 +3,7 @@ package translator
 //go:generate mockgen -source=translate.go -destination=./mocks/translate.go
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -48,7 +49,9 @@ func (t *Translator) Translate(
 		opt(&cfg)
 	}
 
-	inputBytes, err := ioutil.ReadAll(input)
+	var rangerInput bytes.Buffer
+	tr := io.TeeReader(input, &rangerInput)
+	inputBytes, err := ioutil.ReadAll(tr)
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
 	}
@@ -57,7 +60,7 @@ func (t *Translator) Translate(
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	ranges, rangeErrs := ranger.Ranges(ctx, input)
+	ranges, rangeErrs := ranger.Ranges(ctx, &rangerInput)
 	translatedRanges, translateRangeErrs := t.translateRanges(ctx, cfg, ranges, inputText, sourceLang, targetLang)
 
 	var translations []translatedRange
