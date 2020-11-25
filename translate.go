@@ -52,18 +52,20 @@ func (t *Translator) Translate(
 	}
 
 	var rangerInput bytes.Buffer
-	tr := io.TeeReader(input, &rangerInput)
-	inputBytes, err := ioutil.ReadAll(tr)
+	inputTextReader := io.TeeReader(input, &rangerInput)
+
+	b, err := ioutil.ReadAll(inputTextReader)
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
 	}
-	inputText := string(inputBytes)
+	inputText := string(b)
+	translateInput := strings.NewReader(inputText)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	ranges, rangeErrs := ranger.Ranges(ctx, &rangerInput)
-	translatedRanges, translateRangeErrs := t.translateRanges(ctx, cfg, ranges, inputText, sourceLang, targetLang)
+	translatedRanges, translateRangeErrs := t.translateRanges(ctx, cfg, ranges, translateInput, sourceLang, targetLang)
 
 	var translations []translatedRange
 
@@ -143,7 +145,8 @@ func (t *Translator) translateRanges(
 	ctx context.Context,
 	cfg translateConfig,
 	ranges <-chan text.Range,
-	input, sourceLang, targetLang string,
+	input io.ReadSeeker,
+	sourceLang, targetLang string,
 ) (<-chan translatedRange, <-chan *translateRangeError) {
 	translated := make(chan translatedRange, len(ranges))
 	errs := make(chan *translateRangeError, len(ranges))
@@ -199,9 +202,10 @@ func (t *Translator) translateRange(
 	ctx context.Context,
 	cfg translateConfig,
 	r text.Range,
-	input, sourceLang, targetLang string,
+	input io.ReadSeeker,
+	sourceLang, targetLang string,
 ) (string, error) {
-	extracted, err := text.ExtractString(input, r)
+	extracted, err := text.Extract(input, r)
 	if err != nil {
 		return "", fmt.Errorf("extract range: %w", err)
 	}
