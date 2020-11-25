@@ -4,10 +4,12 @@ package text
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
 )
 
@@ -31,7 +33,19 @@ func (r Range) Len() int {
 }
 
 // Extract extracts the text at range r from input.
-func Extract(input io.ReadSeeker, r Range) (string, error) {
+// Use an io.ReadSeeker as input for lower memory consumption.
+func Extract(input io.Reader, r Range) (string, error) {
+	var rs io.ReadSeeker
+	if irs, ok := input.(io.ReadSeeker); ok {
+		rs = irs
+	} else {
+		b, err := ioutil.ReadAll(input)
+		if err != nil {
+			return "", fmt.Errorf("read input: %w", err)
+		}
+		rs = bytes.NewReader(b)
+	}
+
 	rangeLen := r.Len()
 	if rangeLen == 0 {
 		return "", nil
@@ -39,20 +53,22 @@ func Extract(input io.ReadSeeker, r Range) (string, error) {
 		return "", &RangeError{Range: r, Message: "negative length range"}
 	}
 
-	if _, err := input.Seek(int64(r[0]), io.SeekStart); err != nil {
+	if _, err := rs.Seek(int64(r[0]), io.SeekStart); err != nil {
 		return "", fmt.Errorf("seek pos %d: %w", r[0], err)
 	}
 
-	if _, err := input.Read(make([]byte, 1)); err != nil {
+	if _, err := rs.Read(make([]byte, 1)); err != nil {
 		return "", &RangeError{
 			Range:   r,
 			Message: fmt.Sprintf("range start (pos %d) after input end", r[0]),
 		}
 	}
 
-	input.Seek(-1, io.SeekCurrent)
+	if _, err := rs.Seek(-1, io.SeekCurrent); err != nil {
+		return "", fmt.Errorf("seek: %w", err)
+	}
 
-	br := bufio.NewReader(input)
+	br := bufio.NewReader(rs)
 	var runes []rune
 
 	for l := rangeLen; l > 0; l-- {
@@ -74,7 +90,7 @@ func Extract(input io.ReadSeeker, r Range) (string, error) {
 	return string(runes), nil
 }
 
-// ExtractString the text at range r from input.
+// ExtractString extracts the text at range r from input.
 func ExtractString(input string, r Range) (string, error) {
 	return Extract(strings.NewReader(input), r)
 }
