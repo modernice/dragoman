@@ -73,6 +73,7 @@ func TestService_Translate(t *testing.T) {
 	assert.Equal(t, sourceLang, usedURLValues.Get("source_lang"))
 	assert.Equal(t, targetLang, usedURLValues.Get("target_lang"))
 	assert.Equal(t, "1", usedURLValues.Get("preserve_formatting"))
+	assert.Equal(t, "0", usedURLValues.Get("split_sentences"))
 }
 
 func TestService_Translate_withTranslateOptions(t *testing.T) {
