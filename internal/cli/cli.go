@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/bounoable/translator"
-	"github.com/bounoable/translator/json"
-	"github.com/bounoable/translator/service/deepl"
+	translator "github.com/bounoable/dragoman"
+	"github.com/bounoable/dragoman/json"
+	"github.com/bounoable/dragoman/service/deepl"
 	"github.com/spf13/cobra"
 )
 

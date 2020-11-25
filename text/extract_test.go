@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bounoable/translator/text"
+	"github.com/bounoable/dragoman/text"
 	"github.com/stretchr/testify/assert"
 )
 

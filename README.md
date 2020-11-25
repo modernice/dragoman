@@ -1,4 +1,4 @@
-# Structured Text Translator (working title)
+# Dragoman
 
 Translate texts in structured formats.
 
@@ -33,13 +33,13 @@ File gets translated, but property names and placeholder variables are preserved
 ### CLI
 
 ```sh
-go get github.com/bounoable/translator/cmd/translate
+go get github.com/bounoable/dragoman/cmd/translate
 ```
 
 ### As a library
 
 ```sh
-go get github.com/bounoable/translator
+go get github.com/bounoable/dragoman
 ```
 
 ## Usage with CLI
@@ -75,13 +75,13 @@ translate FORMAT SOURCE CONTENT -opt1 -opt2 ...
 
 ```go
 import (
-  "github.com/bounoable/translator"
-  "github.com/bounoable/translator/json"
-  "github.com/bounoable/translator/service/deepl"
+  "github.com/bounoable/dragoman"
+  "github.com/bounoable/dragoman/json"
+  "github.com/bounoable/dragoman/service/deepl"
 )
 
 func translateJSONFile(path, sourceLang, targetLang string) (string, error) {
-  translator := translator.New(deepl.New(os.Getenv("DEEPL_AUTH_KEY")))
+  trans := dragoman.New(deepl.New(os.Getenv("DEEPL_AUTH_KEY")))
 
   f, err := os.Open()
   if err != nil {
@@ -89,7 +89,7 @@ func translateJSONFile(path, sourceLang, targetLang string) (string, error) {
   }
   defer f.Close()
 
-  translated, err := translator.Translate(
+  translated, err := trans.Translate(
     context.TODO(),
     f,
     sourceLang,
@@ -116,7 +116,7 @@ res, _ := trans.Translate(
   strings.NewReader(`{"title": "Hello, {firstName}, how are you?"}`,
   "EN",
   "DE",
-  translator.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
+  dragoman.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
 ))
 
 fmt.Println(res)

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/bounoable/translator/text/preserve"
+	"github.com/bounoable/dragoman/text/preserve"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,4 +1,4 @@
-package translator_test
+package dragoman_test
 
 import (
 	"context"
@@ -8,14 +8,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/bounoable/translator"
-	"github.com/bounoable/translator/json"
-	"github.com/bounoable/translator/service/deepl"
+	"github.com/bounoable/dragoman"
+	"github.com/bounoable/dragoman/json"
+	"github.com/bounoable/dragoman/service/deepl"
 )
 
 func ExampleTranslator_Translate_json() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := translator.New(svc)
+	trans := dragoman.New(svc)
 
 	res, err := trans.Translate(
 		context.TODO(),
@@ -33,7 +33,7 @@ func ExampleTranslator_Translate_json() {
 
 func ExampleTranslator_Translate_jsonWithPlaceholder() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := translator.New(svc)
+	trans := dragoman.New(svc)
 
 	res, err := trans.Translate(
 		context.TODO(),
@@ -41,7 +41,7 @@ func ExampleTranslator_Translate_jsonWithPlaceholder() {
 		"EN",
 		"DE",
 		json.Ranger(),
-		translator.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
+		dragoman.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
 	)
 	if err != nil {
 		log.Fatal(err)

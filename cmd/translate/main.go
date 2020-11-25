@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bounoable/translator/internal/cli"
+	"github.com/bounoable/dragoman/internal/cli"
 )
 
 func main() {

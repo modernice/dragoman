@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bounoable/translator/json/internal/lex"
+	"github.com/bounoable/dragoman/json/internal/lex"
 	"github.com/stretchr/testify/assert"
 )
 

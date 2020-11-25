@@ -1,6 +1,6 @@
-package translator
+package dragoman
 
-//go:generate mockgen -source=translate.go -destination=./mocks/translate.go
+//go:generate mockgen -source=dragoman.go -destination=./mocks/dragoman.go
 
 import (
 	"bytes"
@@ -13,8 +13,8 @@ import (
 	"sync"
 	"unicode"
 
-	"github.com/bounoable/translator/text"
-	"github.com/bounoable/translator/text/preserve"
+	"github.com/bounoable/dragoman/text"
+	"github.com/bounoable/dragoman/text/preserve"
 )
 
 var (

@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/bounoable/deepl"
-	"github.com/bounoable/translator"
-	deeplsvc "github.com/bounoable/translator/service/deepl"
-	mock_deepl "github.com/bounoable/translator/service/deepl/mocks"
+	"github.com/bounoable/dragoman"
+	deeplsvc "github.com/bounoable/dragoman/service/deepl"
+	mock_deepl "github.com/bounoable/dragoman/service/deepl/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,7 +27,7 @@ func TestNewWithClient(t *testing.T) {
 func TestNew(t *testing.T) {
 	svc := deeplsvc.New("")
 	assert.NotNil(t, svc)
-	var _ translator.Service = svc
+	var _ dragoman.Service = svc
 }
 
 func TestNew_withClientOptions(t *testing.T) {

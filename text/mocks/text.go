@@ -6,7 +6,7 @@ package mock_text
 
 import (
 	context "context"
-	text "github.com/bounoable/translator/text"
+	text "github.com/bounoable/dragoman/text"
 	gomock "github.com/golang/mock/gomock"
 	io "io"
 	reflect "reflect"

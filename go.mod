@@ -1,4 +1,4 @@
-module github.com/bounoable/translator
+module github.com/bounoable/dragoman
 
 go 1.15
 

@@ -1,4 +1,4 @@
-package translator_test
+package dragoman_test
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bounoable/translator"
-	mock_translator "github.com/bounoable/translator/mocks"
-	"github.com/bounoable/translator/text"
-	mock_text "github.com/bounoable/translator/text/mocks"
+	"github.com/bounoable/dragoman"
+	mock_dragoman "github.com/bounoable/dragoman/mocks"
+	"github.com/bounoable/dragoman/text"
+	mock_text "github.com/bounoable/dragoman/text/mocks"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -38,8 +38,8 @@ func TestTranslator_Translate(t *testing.T) {
 					WithTranslations(ctrl, "EN", "DE", map[string]string{
 						"This is a title.":       "Dies ist ein Titel.",
 						"This is a description.": "Dies ist eine Beschreibung.",
-					}, func(svc translator.Service) {
-						trans := translator.New(svc)
+					}, func(svc dragoman.Service) {
+						trans := dragoman.New(svc)
 						result, err := trans.Translate(context.Background(), input, "EN", "DE", ranger)
 
 						Convey("There should be no error", func() {
@@ -75,15 +75,15 @@ func TestTranslator_Translate(t *testing.T) {
 						"This is a sentence with a": "Dies ist ein Satz mit einer",
 						"variable.":                 "Variable.",
 					},
-					func(svc translator.Service) {
-						trans := translator.New(svc)
+					func(svc dragoman.Service) {
+						trans := dragoman.New(svc)
 						result, err := trans.Translate(
 							context.Background(),
 							input,
 							"EN",
 							"DE",
 							ranger,
-							translator.Preserve(regexp.MustCompile("{[a-zA-Z]+?}")),
+							dragoman.Preserve(regexp.MustCompile("{[a-zA-Z]+?}")),
 						)
 
 						Convey("There should be no error", func() {
@@ -118,10 +118,10 @@ func TestTranslator_Translate(t *testing.T) {
 			Convey("Given a text ranger", WithRanges(ctrl, []text.Range{{13, 51}, {71, 120}}, func(ranger text.Ranger) {
 				Convey("When the `Parallel()` option is not used", WithParallelTranslations(
 					ctrl,
-					time.Millisecond*200,
-					func(svc translator.Service, maxActive *int64) {
-						trans := translator.New(svc)
-						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr))
+					time.Millisecond*500,
+					func(svc dragoman.Service, maxActive *int64) {
+						trans := dragoman.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, dragoman.Preserve(expr))
 
 						Convey("Only 1 translations should have been active at a time", func() {
 							So(*maxActive, ShouldEqual, 1)
@@ -131,10 +131,10 @@ func TestTranslator_Translate(t *testing.T) {
 
 				Convey("When the `Parallel(1)` option is used", WithParallelTranslations(
 					ctrl,
-					time.Millisecond*200,
-					func(svc translator.Service, maxActive *int64) {
-						trans := translator.New(svc)
-						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(1))
+					time.Millisecond*500,
+					func(svc dragoman.Service, maxActive *int64) {
+						trans := dragoman.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, dragoman.Preserve(expr), dragoman.Parallel(1))
 
 						Convey("Only 1 translations should have been active at a time", func() {
 							So(*maxActive, ShouldEqual, 1)
@@ -144,10 +144,10 @@ func TestTranslator_Translate(t *testing.T) {
 
 				Convey("When the `Parallel(2)` option is used", WithParallelTranslations(
 					ctrl,
-					time.Millisecond*200,
-					func(svc translator.Service, maxActive *int64) {
-						trans := translator.New(svc)
-						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(2))
+					time.Millisecond*500,
+					func(svc dragoman.Service, maxActive *int64) {
+						trans := dragoman.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, dragoman.Preserve(expr), dragoman.Parallel(2))
 
 						Convey("2 translations should have been active at a time", func() {
 							So(*maxActive, ShouldEqual, min(2, runtime.NumCPU()))
@@ -157,10 +157,10 @@ func TestTranslator_Translate(t *testing.T) {
 
 				Convey("When the `Parallel(0)` option is used", WithParallelTranslations(
 					ctrl,
-					time.Millisecond*200,
-					func(svc translator.Service, maxActive *int64) {
-						trans := translator.New(svc)
-						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(0))
+					time.Millisecond*500,
+					func(svc dragoman.Service, maxActive *int64) {
+						trans := dragoman.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, dragoman.Preserve(expr), dragoman.Parallel(0))
 
 						Convey("no translation should have been made", func() {
 							So(*maxActive, ShouldEqual, 0)
@@ -171,9 +171,9 @@ func TestTranslator_Translate(t *testing.T) {
 				Convey("When `Parallel()` option is used with a negative value", WithParallelTranslations(
 					ctrl,
 					time.Millisecond*500,
-					func(svc translator.Service, maxActive *int64) {
-						trans := translator.New(svc)
-						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(-1))
+					func(svc dragoman.Service, maxActive *int64) {
+						trans := dragoman.New(svc)
+						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, dragoman.Preserve(expr), dragoman.Parallel(-1))
 
 						Convey("no translation should have been made", func() {
 							So(*maxActive, ShouldEqual, 0)
@@ -192,8 +192,8 @@ func TestTranslator_Translate(t *testing.T) {
 			input := "!-/:-@[-`{-~" // [[:punct:]] named ASCII character class
 
 			Convey("And a text ranger", WithRanges(ctrl, []text.Range{{0, 12}}, func(ranger text.Ranger) {
-				Convey("Then no translation request should be made", WithTranslations(ctrl, "", "", map[string]string{}, func(svc translator.Service) {
-					trans := translator.New(svc)
+				Convey("Then no translation request should be made", WithTranslations(ctrl, "", "", map[string]string{}, func(svc dragoman.Service) {
+					trans := dragoman.New(svc)
 					res, err := trans.Translate(context.Background(), strings.NewReader(input), "EN", "DE", ranger)
 
 					So(err, ShouldBeNil)
@@ -218,15 +218,15 @@ func TestTranslator_Translate(t *testing.T) {
 						"Hello,":        "Hello,",
 						"! How are you": "! How are you",
 					},
-					func(svc translator.Service) {
+					func(svc dragoman.Service) {
 						Convey("And the translated text should contain the trimmed whitespace", func() {
-							trans := translator.New(svc)
+							trans := dragoman.New(svc)
 							res, err := trans.Translate(
 								context.Background(),
 								strings.NewReader(input),
 								"EN", "EN",
 								ranger,
-								translator.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
+								dragoman.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
 							)
 
 							So(err, ShouldBeNil)
@@ -262,10 +262,10 @@ func WithTranslations(
 	ctrl *gomock.Controller,
 	sourceLang, targetLang string,
 	m map[string]string,
-	f func(translator.Service),
+	f func(dragoman.Service),
 ) func() {
 	return func() {
-		svc := mock_translator.NewMockService(ctrl)
+		svc := mock_dragoman.NewMockService(ctrl)
 		for i, o := range m {
 			svc.EXPECT().
 				Translate(gomock.Any(), i, sourceLang, targetLang).
@@ -278,12 +278,12 @@ func WithTranslations(
 func WithParallelTranslations(
 	ctrl *gomock.Controller,
 	d time.Duration,
-	f func(translator.Service, *int64),
+	f func(dragoman.Service, *int64),
 ) func() {
 	return func() {
 		var active int64
 		var maxActive int64
-		svc := mock_translator.NewMockService(ctrl)
+		svc := mock_dragoman.NewMockService(ctrl)
 
 		svc.EXPECT().
 			Translate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).

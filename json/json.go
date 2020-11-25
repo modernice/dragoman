@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/bounoable/translator/json/internal/lex"
-	"github.com/bounoable/translator/text"
+	"github.com/bounoable/dragoman/json/internal/lex"
+	"github.com/bounoable/dragoman/text"
 )
 
 // Ranger returns a JSON file ranger.
