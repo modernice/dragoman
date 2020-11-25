@@ -105,6 +105,26 @@ func translateJSONFile(path, sourceLang, targetLang string) (string, error) {
 }
 ```
 
+## Preserve substrings (placeholders)
+
+You can prevent translations of substrings matching against a regular expression by using the `Preserve()` option:
+
+```go
+// ...
+res, _ := trans.Translate(
+  context.Background(),
+  strings.NewReader(`{"title": "Hello, {firstName}, how are you?"}`,
+  "EN",
+  "DE",
+  translator.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
+))
+
+fmt.Println(res)
+// {"title": "Hallo, {firstName}, wie geht es Ihnen?"}
+```
+
+**:warning: Note that matched substrings are cut out of the sentence, and the remaining parts are translated independently. Then the cut out parts are reinserted into the sentence. If you have placeholders in sentences with complex grammar the translated sentence may end up grammatically incorrect.**
+
 ## License
 
 [MIT](./LICENSE)
