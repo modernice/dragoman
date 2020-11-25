@@ -1,10 +1,12 @@
 # Dragoman
 
-Translate texts in structured formats.
+[![PkgGoDev](https://pkg.go.dev/badge/bounoable/dragoman)](https://pkg.go.dev/bounoable/dragoman)
+
+Translate structured documents.
 
 ## TL;DR – Translate JSON files, but preserve key names!
 
-Translate the file `i18n/en.json` from `English` into `German` via `DeepL` while preserving placeholders, saving the result into `i18n/de.json`:
+Translate the file `i18n/en.json` from `English` into `German` via `DeepL` while preserving placeholders and write the result into `i18n/de.json`:
 
 ```sh
 translate json file i18n/en.json -o i18n/de.json --from en --into de --preserve '{[a-zA-Z]+?}' --deepl $DEEPL_AUTH_KEY
@@ -114,8 +116,7 @@ You can prevent translations of substrings matching against a regular expression
 res, _ := trans.Translate(
   context.Background(),
   strings.NewReader(`{"title": "Hello, {firstName}, how are you?"}`,
-  "EN",
-  "DE",
+  "en", "de",
   dragoman.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
 ))
 
@@ -123,7 +124,7 @@ fmt.Println(res)
 // {"title": "Hallo, {firstName}, wie geht es Ihnen?"}
 ```
 
-**:warning: Note that matched substrings are cut out of the sentence, and the remaining parts are translated independently. Then the cut out parts are reinserted into the sentence. If you have placeholders in sentences with complex grammar the translated sentence may end up grammatically incorrect.**
+:warning: Note that matched substrings are cut out of the sentence, and the remaining parts are translated independently. The cut out parts are then reinserted between the translated strings, so if you have placeholders in sentences with complex grammar, the translated result may end up grammatically incorrect.
 
 ## License
 
