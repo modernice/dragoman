@@ -2,6 +2,7 @@ package text_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/bounoable/translator/text"
@@ -56,7 +57,16 @@ func TestExtract(t *testing.T) {
 			rang:  text.Range{27, 30},
 			expectedError: &text.RangeError{
 				Range:   text.Range{27, 30},
-				Message: fmt.Sprintf("range start (pos %d) after input end (pos %d)", 27, 27),
+				Message: fmt.Sprintf("range start (pos %d) after input end", 27),
+			},
+		},
+		{
+			name:  "single line, start out of bounds 2",
+			input: `This is a single line text.`,
+			rang:  text.Range{30, 40},
+			expectedError: &text.RangeError{
+				Range:   text.Range{30, 40},
+				Message: fmt.Sprintf("range start (pos %d) after input end", 30),
 			},
 		},
 		{
@@ -98,9 +108,23 @@ this is the second line.`,
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			extracted, err := text.Extract(test.input, test.rang)
-			assert.Equal(t, test.expectedError, err)
-			assert.Equal(t, test.expected, extracted)
+			t.Run("text.Extract()", func(t *testing.T) {
+				extracted, err := text.Extract(strings.NewReader(test.input), test.rang)
+				assert.Equal(t, test.expectedError, err)
+
+				if test.expectedError == nil {
+					assert.Equal(t, test.expected, extracted)
+				}
+			})
+
+			t.Run("text.ExtractString()", func(t *testing.T) {
+				extracted, err := text.ExtractString(test.input, test.rang)
+				assert.Equal(t, test.expectedError, err)
+
+				if test.expectedError == nil {
+					assert.Equal(t, test.expected, extracted)
+				}
+			})
 		})
 	}
 }

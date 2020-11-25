@@ -201,7 +201,7 @@ func (t *Translator) translateRange(
 	r text.Range,
 	input, sourceLang, targetLang string,
 ) (string, error) {
-	extracted, err := text.Extract(input, r)
+	extracted, err := text.ExtractString(input, r)
 	if err != nil {
 		return "", fmt.Errorf("extract range: %w", err)
 	}

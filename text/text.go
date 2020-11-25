@@ -3,9 +3,12 @@ package text
 //go:generate mockgen -source=text.go -destination=./mocks/text.go
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Ranger analyzes inputs and returns the ranges, that need to be translated.
@@ -27,32 +30,53 @@ func (r Range) Len() int {
 	return int(r[1] - r[0])
 }
 
-// Extract the text at range r from input.
-func Extract(input string, r Range) (string, error) {
-	l := int(r[1]) - int(r[0])
-	if l == 0 {
+// Extract extracts the text at range r from input.
+func Extract(input io.ReadSeeker, r Range) (string, error) {
+	rangeLen := r.Len()
+	if rangeLen == 0 {
 		return "", nil
-	} else if l < 0 {
+	} else if rangeLen < 0 {
 		return "", &RangeError{Range: r, Message: "negative length range"}
 	}
 
-	inputLen := uint(len(input))
+	if _, err := input.Seek(int64(r[0]), io.SeekStart); err != nil {
+		return "", fmt.Errorf("seek pos %d: %w", r[0], err)
+	}
 
-	if r[0] >= inputLen {
+	if _, err := input.Read(make([]byte, 1)); err != nil {
 		return "", &RangeError{
 			Range:   r,
-			Message: fmt.Sprintf("range start (pos %d) after input end (pos %d)", r[0], inputLen),
+			Message: fmt.Sprintf("range start (pos %d) after input end", r[0]),
 		}
 	}
 
-	if r[1] > inputLen {
-		return "", &RangeError{
-			Range:   r,
-			Message: fmt.Sprintf("range end (pos %d) after input end (pos %d)", r[1], inputLen),
+	input.Seek(-1, io.SeekCurrent)
+
+	br := bufio.NewReader(input)
+	var runes []rune
+
+	for l := rangeLen; l > 0; l-- {
+		run, _, err := br.ReadRune()
+		if errors.Is(err, io.EOF) {
+			return "", &RangeError{
+				Range:   r,
+				Message: fmt.Sprintf("range end (pos %d) after input end (pos %d)", r[1], r[0]+uint(rangeLen-l)),
+			}
 		}
+
+		if err != nil {
+			return "", fmt.Errorf("read rune: %w", err)
+		}
+
+		runes = append(runes, run)
 	}
 
-	return input[r[0]:r[1]], nil
+	return string(runes), nil
+}
+
+// ExtractString the text at range r from input.
+func ExtractString(input string, r Range) (string, error) {
+	return Extract(strings.NewReader(input), r)
 }
 
 // RangeError is a range error.
@@ -106,7 +130,7 @@ func ReplaceMany(input string, replacements ...Replacement) (string, error) {
 
 		output = output[:int(repl.Range[0])+off] + repl.Text + output[int(repl.Range[1])+off:]
 
-		orgText, err := Extract(input, repl.Range)
+		orgText, err := ExtractString(input, repl.Range)
 		if err != nil {
 			return "", fmt.Errorf("extract text: %w", err)
 		}
