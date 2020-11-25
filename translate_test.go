@@ -69,10 +69,10 @@ func TestTranslator_Translate(t *testing.T) {
 				Convey("When the text gets translated with the `Preserve()` option", WithTranslations(
 					ctrl, "EN", "DE",
 					map[string]string{
-						"Hello, ":                    "Hallo, ",
-						", how are you ":             ", wie geht es Ihnen ",
-						"This is a sentence with a ": "Dies ist ein Satz mit einer ",
-						" variable.":                 " Variable.",
+						"Hello,":                    "Hallo,",
+						", how are you":             ", wie geht es Ihnen",
+						"This is a sentence with a": "Dies ist ein Satz mit einer",
+						"variable.":                 "Variable.",
 					},
 					func(svc translator.Service) {
 						trans := translator.New(svc)
@@ -198,6 +198,41 @@ func TestTranslator_Translate(t *testing.T) {
 					So(err, ShouldBeNil)
 					So(string(res), ShouldEqual, input)
 				}))
+			}))
+		})
+	})
+
+	Convey("Whitespace handling", t, func() {
+		ctrl := gomock.NewController(t)
+		Reset(ctrl.Finish)
+
+		Convey("Given an input with some placeholders", func() {
+			input := `Hello, {firstName}! How are you {day}?`
+
+			Convey("And a text ranger", WithRanges(ctrl, []text.Range{{0, 38}}, func(ranger text.Ranger) {
+				Convey("Then the whitespace should be trimmed before making the translation request", WithTranslations(
+					ctrl,
+					"EN", "EN",
+					map[string]string{
+						"Hello,":        "Hello,",
+						"! How are you": "! How are you",
+					},
+					func(svc translator.Service) {
+						Convey("And the translated text should contain the trimmed whitespace", func() {
+							trans := translator.New(svc)
+							res, err := trans.Translate(
+								context.Background(),
+								strings.NewReader(input),
+								"EN", "EN",
+								ranger,
+								translator.Preserve(regexp.MustCompile(`{[a-zA-Z]+?}`)),
+							)
+
+							So(err, ShouldBeNil)
+							So(string(res), ShouldEqual, input)
+						})
+					}),
+				)
 			}))
 		})
 	})

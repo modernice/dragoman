@@ -9,7 +9,9 @@ import (
 	"io"
 	"io/ioutil"
 	"regexp"
+	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/bounoable/translator/text"
 	"github.com/bounoable/translator/text/preserve"
@@ -212,14 +214,41 @@ func (t *Translator) translateRange(
 	}
 
 	for i, part := range parts {
+		var leftSpace, rightSpace []rune
+		part = strings.TrimLeftFunc(part, func(r rune) bool {
+			if unicode.IsSpace(r) {
+				leftSpace = append(leftSpace, r)
+				return true
+			}
+			return false
+		})
+		part = strings.TrimRightFunc(part, func(r rune) bool {
+			if unicode.IsSpace(r) {
+				rightSpace = append(rightSpace, r)
+				return true
+			}
+			return false
+		})
+
 		if isPunctuation(part) {
 			continue
 		}
+
 		translated, err := t.service.Translate(ctx, part, sourceLang, targetLang)
 		if err != nil {
 			return "", fmt.Errorf("translate: %w", err)
 		}
-		parts[i] = translated
+
+		if len(leftSpace) == 0 && len(rightSpace) == 0 {
+			parts[i] = translated
+			continue
+		}
+
+		var builder strings.Builder
+		builder.WriteString(string(leftSpace))
+		builder.WriteString(translated)
+		builder.WriteString(string(rightSpace))
+		parts[i] = builder.String()
 	}
 
 	return preserve.Join(parts, preserved), nil
