@@ -71,7 +71,7 @@ translate FORMAT SOURCE CONTENT -opt1 -opt2 ...
 
 - [x] `text`
 - [x] `file`
-- [ ] `webpage`
+- [ ] `url`
 
 ## Use as library
 
@@ -124,7 +124,7 @@ fmt.Println(res)
 // {"title": "Hallo, {firstName}, wie geht es Ihnen?"}
 ```
 
-:warning: Note that matched substrings are cut out of the sentence, and the remaining parts are translated independently. The cut out parts are then reinserted between the translated strings, so if you have placeholders in sentences with complex grammar, the translated result may end up grammatically incorrect.
+> :warning: Note that matched substrings are cut out of the sentence, and the remaining parts are translated independently. The cut out parts are then reinserted between the translated strings, so if you have placeholders in sentences with complex grammar, **the translated result may end up grammatically incorrect.**
 
 ## License
 
