@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -149,7 +150,7 @@ func TestTranslator_Translate(t *testing.T) {
 						trans.Translate(context.Background(), input, sourceLang, targetLang, ranger, translator.Preserve(expr), translator.Parallel(2))
 
 						Convey("2 translations should have been active at a time", func() {
-							So(*maxActive, ShouldEqual, 2)
+							So(*maxActive, ShouldEqual, min(2, runtime.NumCPU()))
 						})
 					}),
 				)
@@ -301,4 +302,17 @@ func WithParallelTranslations(
 
 		f(svc, &maxActive)
 	}
+}
+
+func min(nums ...int) int {
+	if len(nums) == 0 {
+		return 0
+	}
+	min := nums[0]
+	for _, n := range nums[1:] {
+		if n < min {
+			min = n
+		}
+	}
+	return min
 }
