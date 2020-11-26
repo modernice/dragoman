@@ -1,4 +1,4 @@
-// Package json implements translation for JSON files.
+// Package json provides translation of JSON files.
 package json
 
 import (
