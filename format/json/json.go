@@ -24,6 +24,7 @@ func (r ranger) Ranges(ctx context.Context, input io.Reader) (<-chan text.Range,
 	tokens := lex.Lex(input)
 	go func() {
 		defer close(ranges)
+		defer close(errs)
 		for tok := range tokens {
 			switch tok.Type {
 			case lex.Error:
