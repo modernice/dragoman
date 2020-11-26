@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	translator "github.com/bounoable/dragoman"
+	"github.com/bounoable/dragoman/format/html"
 	"github.com/bounoable/dragoman/format/json"
 	"github.com/bounoable/dragoman/service/deepl"
+	"github.com/bounoable/dragoman/text"
 	"github.com/spf13/cobra"
 )
 
@@ -32,9 +34,11 @@ type CLI struct {
 var (
 	formats = [...]string{
 		"json",
+		"html",
 	}
 	formatShorts = map[string]string{
 		"json": "Translate JSON",
+		"html": "Translate HTML",
 	}
 )
 
@@ -69,6 +73,11 @@ var (
 	contents = map[string]string{
 		"text": `'{"title": "Hello, {firstName}!"}'`,
 		"file": `i18n/en.json`,
+	}
+
+	rangerFactories = map[string]func() text.Ranger{
+		"json": createJSONRanger,
+		"html": createHTMLRanger,
 	}
 )
 
@@ -107,6 +116,7 @@ func formatCommand(
 			source,
 			fmt.Sprintf("%s %s", short, source),
 			contents[source],
+			rangerFactories[format],
 		))
 	}
 
@@ -123,7 +133,7 @@ func formatCommand(
 	return cmd
 }
 
-func sourceCommand(format, source, short, content string) *cobra.Command {
+func sourceCommand(format, source, short, content string, createRanger func() text.Ranger) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   source,
 		Short: short,
@@ -158,7 +168,7 @@ func sourceCommand(format, source, short, content string) *cobra.Command {
 				strings.NewReader(args[0]),
 				sourceLang,
 				targetLang,
-				json.Ranger(),
+				createRanger(),
 				opts...,
 			)
 
@@ -183,4 +193,12 @@ func newService() (translator.Service, error) {
 	default:
 		return nil, errors.New("missing authentication")
 	}
+}
+
+func createJSONRanger() text.Ranger {
+	return json.Ranger()
+}
+
+func createHTMLRanger() text.Ranger {
+	return html.Ranger()
 }
