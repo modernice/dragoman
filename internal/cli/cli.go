@@ -3,202 +3,306 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
 
-	translator "github.com/bounoable/dragoman"
-	"github.com/bounoable/dragoman/format/html"
-	"github.com/bounoable/dragoman/format/json"
-	"github.com/bounoable/dragoman/service/deepl"
+	"github.com/bounoable/dragoman"
 	"github.com/bounoable/dragoman/text"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-// New returns the translator CLI.
-func New() *CLI {
-	cli := &CLI{Command: cobra.Command{
-		Use:   "translate",
-		Short: "Translate structured texts.",
-	}}
+// New returns the translator CLI, configured by opts.
+func New(opts ...Option) *CLI {
+	cli := &CLI{
+		Command: cobra.Command{
+			Use:   "translate",
+			Short: "Translate structured documents",
+		},
+		examples:       make(map[string]map[string]string),
+		translatorArgs: make(map[string]*string),
+	}
+	for _, opt := range opts {
+		opt(cli)
+	}
 	cli.init()
 	return cli
 }
 
+// Option is a CLI option.
+type Option func(*CLI)
+
 // CLI is the translator CLI.
 type CLI struct {
 	cobra.Command
-	trans *translator.Translator
+	translators []Translator
+	formats     []Format
+	sources     []Source
+	examples    map[string]map[string]string // map[FORMAT]map[SOURCE]EXAMPLE
+
+	// flags
+	translatorArgs map[string]*string
+	sourceLang     string
+	targetLang     string
+	out            string
+	preserve       string
+	parallel       int
+
+	translator *dragoman.Translator
 }
 
-var (
-	formats = [...]string{
-		"json",
-		"html",
+// Translator is a translation service configuration.
+type Translator struct {
+	// Name will be used as the flag name for the translation service.
+	// For example the name "deepl" creates the CLI flag "--deepl".
+	Name string
+	// Description is the usage message for the CLI flag.
+	Description string
+	// New accepts the flag value (authentication key) and creates the translation service.
+	New func(string) (dragoman.Service, error)
+}
+
+// Format is a format cofiguration.
+type Format struct {
+	// Name will be used as the CLI command name.
+	Name string
+	// Short is the short CLI description.
+	Short string
+	// Flags is an optional function that accepts the flag set for the command.
+	// Used to add additional flags specific to the format.
+	Flags func(*pflag.FlagSet)
+	// Ranger creates the text ranger for the format.
+	Ranger func() (text.Ranger, error)
+}
+
+// Source is a file source configuration.
+type Source struct {
+	// Name will be used as the CLI command name.
+	Name string
+	// Reader creates the io.Reader from the first CLI argument.
+	// If the reader is also an io.Closer, it will be automatically closed after execution.
+	Reader func(string) (io.Reader, error)
+}
+
+// WithTranslator adds translation services to the CLI.
+func WithTranslator(trans ...Translator) Option {
+	return func(cli *CLI) {
+		cli.translators = append(cli.translators, trans...)
 	}
-	formatShorts = map[string]string{
-		"json": "Translate JSON",
-		"html": "Translate HTML",
+}
+
+// WithFormat adds formats to the CLI.
+func WithFormat(formats ...Format) Option {
+	return func(cli *CLI) {
+		cli.formats = append(cli.formats, formats...)
 	}
-)
+}
+
+// WithSource adds sources to the CLI.
+func WithSource(sources ...Source) Option {
+	return func(cli *CLI) {
+		cli.sources = append(cli.sources, sources...)
+	}
+}
+
+// WithExample adds an example for the given format <-> source combination.
+func WithExample(format, source, example string) Option {
+	return func(cli *CLI) {
+		examples, ok := cli.examples[format]
+		if !ok {
+			examples = map[string]string{}
+		}
+		examples[source] = example
+		cli.examples[format] = examples
+	}
+}
 
 func (cli *CLI) init() {
-	for _, format := range formats[:] {
-		cli.AddCommand(formatCommand(format, formatShorts[format]))
+	for _, format := range cli.formats {
+		cmd := &cobra.Command{
+			Use:   format.Name,
+			Short: format.Short,
+		}
+
+		cli.initTranslator(cmd)
+
+		cmd.PersistentFlags().StringVar(&cli.sourceLang, "from", "en", "Source language")
+		cmd.PersistentFlags().StringVar(&cli.targetLang, "into", "en", "Target language")
+		cmd.PersistentFlags().StringVar(&cli.preserve, "preserve", "", "Prevent translation of substrings (regular expression)")
+		cmd.PersistentFlags().StringVarP(&cli.out, "out", "o", "", "Write the result to the specified filepath")
+		cmd.PersistentFlags().IntVarP(&cli.parallel, "parallel", "p", 1, "Max concurrent translation requests")
+
+		cmd.MarkPersistentFlagRequired("from")
+		cmd.MarkPersistentFlagRequired("into")
+
+		if format.Flags != nil {
+			format.Flags(cmd.PersistentFlags())
+		}
+
+		for _, source := range cli.sources {
+			cli.sourceCommand(cmd, source, format)
+		}
+
+		cli.AddCommand(cmd)
 	}
 }
 
-var (
-	deeplAuthKey string
-)
-
-var (
-	sourceLang string
-	targetLang string
-	preserve   string
-	parallel   int
-	outfile    string
-)
-
-var (
-	out = os.Stdout
-)
-
-var (
-	sources = [...]string{
-		"text",
-		"file",
+func (cli *CLI) initTranslator(cmd *cobra.Command) {
+	for _, translator := range cli.translators {
+		var arg string
+		cmd.PersistentFlags().StringVar(&arg, translator.Name, "", translator.Description)
+		cli.translatorArgs[translator.Name] = &arg
 	}
 
-	contents = map[string]string{
-		"text": `'{"title": "Hello, {firstName}!"}'`,
-		"file": `i18n/en.json`,
+	cmd.PersistentPreRunE = func(*cobra.Command, []string) error {
+		svc, err := cli.newService()
+		if err != nil {
+			return fmt.Errorf("make translation service: %w", err)
+		}
+		cli.translator = dragoman.New(svc)
+		return nil
 	}
-
-	rangerFactories = map[string]func() text.Ranger{
-		"json": createJSONRanger,
-		"html": createHTMLRanger,
-	}
-)
-
-func formatCommand(
-	format string,
-	short string,
-) *cobra.Command {
-	var file *os.File
-	cmd := &cobra.Command{
-		Use:   format,
-		Short: short,
-		PersistentPreRunE: func(*cobra.Command, []string) error {
-			if outfile == "" {
-				return nil
-			}
-			var err error
-			if file, err = os.Create(outfile); err != nil {
-				return fmt.Errorf("create file: %w", err)
-			}
-			out = file
-			return nil
-		},
-		PersistentPostRunE: func(*cobra.Command, []string) error {
-			if file != nil {
-				if err := file.Close(); err != nil {
-					return fmt.Errorf("close file: %w", err)
-				}
-			}
-			return nil
-		},
-	}
-
-	for _, source := range sources[:] {
-		cmd.AddCommand(sourceCommand(
-			format,
-			source,
-			fmt.Sprintf("%s %s", short, source),
-			contents[source],
-			rangerFactories[format],
-		))
-	}
-
-	cmd.PersistentFlags().StringVar(&deeplAuthKey, "deepl", "", "DeepL authentication key")
-	cmd.PersistentFlags().StringVar(&sourceLang, "from", "en", "Source language")
-	cmd.PersistentFlags().StringVar(&targetLang, "into", "en", "Target language")
-	cmd.PersistentFlags().StringVar(&preserve, "preserve", "", "Prevent translation of substrings (regular expression)")
-	cmd.PersistentFlags().IntVarP(&parallel, "parallel", "p", 1, "Max allowed concurrent translation requests")
-	cmd.PersistentFlags().StringVarP(&outfile, "out", "o", "", "Write the result to the specified filepath")
-
-	cmd.MarkPersistentFlagRequired("from")
-	cmd.MarkPersistentFlagRequired("into")
-
-	return cmd
 }
 
-func sourceCommand(format, source, short, content string, createRanger func() text.Ranger) *cobra.Command {
+func (cli *CLI) newService() (dragoman.Service, error) {
+	for name, arg := range cli.translatorArgs {
+		if *arg == "" {
+			continue
+		}
+
+		trans, ok := cli.translatorConfig(name)
+		if !ok {
+			continue
+		}
+
+		svc, err := trans.New(*arg)
+		if err != nil {
+			return svc, fmt.Errorf("Translator.New(%v) failed: %w", *arg, err)
+		}
+
+		return svc, nil
+	}
+	return nil, cli.missingServiceError()
+}
+
+func (cli *CLI) translatorConfig(name string) (Translator, bool) {
+	for _, trans := range cli.translators {
+		if trans.Name == name {
+			return trans, true
+		}
+	}
+	return Translator{}, false
+}
+
+func (cli *CLI) missingServiceError() error {
+	var b strings.Builder
+	b.WriteString("Missing translation service. Select one with the one of the following options:\n")
+	for _, translator := range cli.translators {
+		b.WriteString(fmt.Sprintf("      --%s string\n", translator.Name))
+	}
+	return humanError{
+		err:     errors.New("missing translation service"),
+		message: b.String(),
+	}
+}
+
+func (cli *CLI) sourceCommand(formatCmd *cobra.Command, source Source, format Format) {
 	cmd := &cobra.Command{
-		Use:   source,
-		Short: short,
-		Example: fmt.Sprintf(
-			`translate %s %s %s --from=en --into=de --preserve='{[a-z]+?}' --deepl=$DEEPL_AUTH_KEY`,
-			format,
-			source,
-			content,
-		),
-		Args: cobra.ExactArgs(1),
+		Use:     source.Name,
+		Short:   fmt.Sprintf("%s (%s)", formatCmd.Short, source.Name),
+		Example: cli.example(format.Name, source.Name),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc, err := newService()
+			r, err := source.Reader(args[0])
 			if err != nil {
-				return fmt.Errorf("create service: %w", err)
+				return fmt.Errorf("Source.Reader(%v) failed: %w", args[0], err)
 			}
-			trans := translator.New(svc)
-
-			opts := []translator.TranslateOption{
-				translator.Parallel(parallel),
+			if c, ok := r.(io.Closer); ok {
+				defer c.Close()
 			}
 
-			if preserve != "" {
-				expr, err := regexp.Compile(preserve)
+			opts := []dragoman.TranslateOption{
+				dragoman.Parallel(cli.parallel),
+			}
+
+			if cli.preserve != "" {
+				expr, err := regexp.Compile(cli.preserve)
 				if err != nil {
-					return fmt.Errorf("compile regexp for `preserve` option: %w", err)
+					return fmt.Errorf("compile regexp (%v): %w", cli.preserve, err)
 				}
-				opts = append(opts, translator.Preserve(expr))
+				opts = append(opts, dragoman.Preserve(expr))
 			}
 
-			res, err := trans.Translate(
+			ranger, err := format.Ranger()
+			if err != nil {
+				return fmt.Errorf("make ranger: %w", err)
+			}
+
+			res, err := cli.translator.Translate(
 				cmd.Context(),
-				strings.NewReader(args[0]),
-				sourceLang,
-				targetLang,
-				createRanger(),
+				r,
+				cli.sourceLang,
+				cli.targetLang,
+				ranger,
 				opts...,
 			)
-
 			if err != nil {
 				return fmt.Errorf("translate: %w", err)
 			}
 
-			if _, err = fmt.Fprintf(out, string(res)); err != nil {
+			out := os.Stdout
+			var f *os.File
+
+			if cli.out != "" {
+				if f, err = os.Create(cli.out); err != nil {
+					return fmt.Errorf("create outfile (%v): %w", cli.out, err)
+				}
+				out = f
+			}
+
+			if _, err = fmt.Fprint(out, string(res)); err != nil {
 				return fmt.Errorf("write result: %w", err)
+			}
+
+			if f != nil {
+				if err = f.Close(); err != nil {
+					return fmt.Errorf("close outfile: %w", err)
+				}
 			}
 
 			return nil
 		},
 	}
-	return cmd
+
+	formatCmd.AddCommand(cmd)
 }
 
-func newService() (translator.Service, error) {
-	switch {
-	case deeplAuthKey != "":
-		return deepl.New(deeplAuthKey), nil
-	default:
-		return nil, errors.New("missing authentication")
+func (cli *CLI) example(format, source string) string {
+	examples, ok := cli.examples[format]
+	if !ok {
+		return cli.defaultExample(format, source)
 	}
+	content, ok := examples[source]
+	if !ok {
+		return cli.defaultExample(format, source)
+	}
+	return fmt.Sprintf("translate %s %s %s --from en --into de --deepl $DEEPL_AUTH_KEY", format, source, content)
 }
 
-func createJSONRanger() text.Ranger {
-	return json.Ranger()
+func (cli *CLI) defaultExample(format, source string) string {
+	return fmt.Sprintf("translate %s %s CONTENT -o out.%s --from en --into de --deepl $DEEPL_AUTH_LEY", format, source, format)
 }
 
-func createHTMLRanger() text.Ranger {
-	return html.Ranger()
+type humanError struct {
+	err     error
+	message string
+}
+
+func (err humanError) Error() string {
+	return err.err.Error()
+}
+
+func (err humanError) HumanError() string {
+	return err.message
 }
