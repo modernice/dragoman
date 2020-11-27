@@ -59,20 +59,30 @@ func WithAttribute(name string, tags ...string) Option {
 //
 // Use WithAttributePath("img.alt", "a.title") to allow translations of `alt`
 // attributes in `img` tags and `title` attributes in `a` tags.
-func WithAttributePath(paths ...string) Option {
-	return WithAttributeFunc(func(tok html.Token) []string {
-		var attrs []string
-		for _, path := range paths {
-			tag, attr, err := parsePath(path)
-			if err != nil {
-				panic(fmt.Errorf("parse attribute path: %w", err))
-			}
-			if tok.Data == tag {
-				attrs = append(attrs, attr)
-			}
+//
+// Returns an error if parsing of a path fails.
+func WithAttributePath(paths ...string) (Option, error) {
+	tagAttrs := make(map[string][]string)
+	for _, path := range paths {
+		tag, attr, err := parsePath(path)
+		if err != nil {
+			return nil, fmt.Errorf("parse attribute path: %w", err)
 		}
-		return attrs
-	})
+		tagAttrs[tag] = append(tagAttrs[tag], attr)
+	}
+
+	return WithAttributeFunc(func(tok html.Token) []string {
+		return tagAttrs[tok.Data]
+	}), nil
+}
+
+// MustAttributePath does the same as WithAttributePath(), but panics if parsing of a path fails.
+func MustAttributePath(paths ...string) Option {
+	opt, err := WithAttributePath(paths...)
+	if err != nil {
+		panic(err)
+	}
+	return opt
 }
 
 func parsePath(path string) (tag string, attr string, err error) {

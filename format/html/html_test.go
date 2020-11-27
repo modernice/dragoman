@@ -175,7 +175,7 @@ func TestRanger_Ranges_withAttributePath(t *testing.T) {
 			name:  "single attribute, single tag",
 			input: `<p alt="An alternate description.">A paragraph with an <img alt="An alternate description." src="/path/to/image.png">, goodbye.</p>`,
 			opts: []html.Option{
-				html.WithAttributePath("img.alt"),
+				optionMust(html.WithAttributePath("img.alt")),
 			},
 			expected: []text.Range{
 				{35, 55},
@@ -187,8 +187,8 @@ func TestRanger_Ranges_withAttributePath(t *testing.T) {
 			name:  "multiple attributes, multiple tags",
 			input: `<p alt="An alternate description.">A paragraph with an <img alt="An alternate description." src="/path/to/image.png">, goodbye.</p>`,
 			opts: []html.Option{
-				html.WithAttributePath("img.alt", "p.alt"),
-				html.WithAttributePath("img.src"),
+				optionMust(html.WithAttributePath("img.alt", "p.alt")),
+				optionMust(html.WithAttributePath("img.src")),
 			},
 			expected: []text.Range{
 				{8, 33},
@@ -230,4 +230,11 @@ func drain(ctx context.Context, ch <-chan text.Range) ([]text.Range, error) {
 			ranges = append(ranges, rang)
 		}
 	}
+}
+
+func optionMust(opt html.Option, err error) html.Option {
+	if err != nil {
+		panic(err)
+	}
+	return opt
 }
