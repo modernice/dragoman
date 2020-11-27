@@ -55,6 +55,48 @@ func WithAttribute(name string, tags ...string) Option {
 	})
 }
 
+// WithAttributePath allows translations of HTML tag attributes with the specified paths.
+//
+// Use WithAttributePath("img.alt", "a.title") to allow translations of `alt`
+// attributes in `img` tags and `title` attributes in `a` tags.
+func WithAttributePath(paths ...string) Option {
+	return WithAttributeFunc(func(tok html.Token) []string {
+		var attrs []string
+		for _, path := range paths {
+			tag, attr, err := parsePath(path)
+			if err != nil {
+				panic(fmt.Errorf("parse attribute path: %w", err))
+			}
+			if tok.Data == tag {
+				attrs = append(attrs, attr)
+			}
+		}
+		return attrs
+	})
+}
+
+func parsePath(path string) (tag string, attr string, err error) {
+	parts := strings.Split(path, ".")
+	if len(parts) != 2 {
+		err = fmt.Errorf("invalid attribute path: %s", path)
+		return
+	}
+	tag = parts[0]
+	attr = parts[1]
+
+	if strings.TrimSpace(tag) == "" {
+		err = fmt.Errorf("empty html tag: %s", tag)
+		return
+	}
+
+	if strings.TrimSpace(attr) == "" {
+		err = fmt.Errorf("empty html attribute: %s", attr)
+		return
+	}
+
+	return
+}
+
 type ranger struct {
 	attributeFuncs []func(html.Token) []string
 }

@@ -126,7 +126,7 @@ func TestRanger_Ranges_withAttribute(t *testing.T) {
 			},
 		},
 		{
-			name:  "multiple attributes",
+			name:  "multiple attributes, multiple tags",
 			input: `<p alt="An alternate description.">A paragraph with an <img alt="An alternate description." src="/path/to/image.png">, goodbye.</p>`,
 			opts: []html.Option{
 				html.WithAttribute("alt", "img", "p"),
@@ -146,6 +146,49 @@ func TestRanger_Ranges_withAttribute(t *testing.T) {
 			opts: []html.Option{
 				html.WithAttribute("alt"),
 				html.WithAttribute("src"),
+			},
+			expected: []text.Range{
+				{8, 33},
+				{35, 55},
+				{65, 90},
+				{97, 115},
+				{117, 127},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			testRanger(t, test.input, test.expected, test.opts...)
+		})
+	}
+}
+
+func TestRanger_Ranges_withAttributePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		opts     []html.Option
+		expected []text.Range
+	}{
+		{
+			name:  "single attribute, single tag",
+			input: `<p alt="An alternate description.">A paragraph with an <img alt="An alternate description." src="/path/to/image.png">, goodbye.</p>`,
+			opts: []html.Option{
+				html.WithAttributePath("img.alt"),
+			},
+			expected: []text.Range{
+				{35, 55},
+				{65, 90},
+				{117, 127},
+			},
+		},
+		{
+			name:  "multiple attributes, multiple tags",
+			input: `<p alt="An alternate description.">A paragraph with an <img alt="An alternate description." src="/path/to/image.png">, goodbye.</p>`,
+			opts: []html.Option{
+				html.WithAttributePath("img.alt", "p.alt"),
+				html.WithAttributePath("img.src"),
 			},
 			expected: []text.Range{
 				{8, 33},
