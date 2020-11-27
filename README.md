@@ -1,8 +1,6 @@
-# Dragoman
+# Dragoman - Translate structured documents
 
 [![PkgGoDev](https://pkg.go.dev/badge/bounoable/dragoman)](https://pkg.go.dev/bounoable/dragoman)
-
-Translate structured documents.
 
 ## TL;DR – Translate JSON files, but preserve key names!
 
@@ -32,6 +30,8 @@ File gets translated, but property names and placeholder variables are preserved
 
 ## Installation
 
+**At the time of this writing only DeepL is implemented as a translation service, so you need a DeepL Pro Account and your authentication key.**
+
 ### CLI
 
 ```sh
@@ -46,9 +46,7 @@ go get github.com/bounoable/dragoman
 
 ## Usage with CLI
 
-At the time of this writing only DeepL is implemented as a translation service, so you need a DeepL Pro Account and your authentication key.
-
-Then you just run the following command to translate the JSON file `en.json` from English into German:
+Run the following example command to translate the JSON file `en.json` from English into German:
 
 ```sh
 translate json file en.json -o de.json --from en --into de --deepl $DEEPL_AUTH_KEY
@@ -57,17 +55,15 @@ translate json file en.json -o de.json --from en --into de --deepl $DEEPL_AUTH_K
 The syntax for translating files looks like this:
 
 ```sh
-translate FORMAT SOURCE CONTENT -opt1 -opt2 ...
+translate FORMAT SOURCE CONTENT --opt1 --opt2 ...
 ```
 
-### Formats
+### Supported formats
 
 - [x] `json`
-- [ ] `plain`
-- [ ] `html`
-- [ ] `markdown`
+- [x] `html`
 
-### Sources
+### Supported sources
 
 - [x] `text`
 - [x] `file`
@@ -107,9 +103,11 @@ func translateJSONFile(path, sourceLang, targetLang string) (string, error) {
 }
 ```
 
+For more examples visit [**pkg.go.dev**](https://pkg.go.dev/bounoable/dragoman) or [**example_test.go**](./example_test.go).
+
 ## Preserve substrings (placeholders)
 
-You can prevent translations of substrings matching against a regular expression by using the `Preserve()` option:
+You can prevent translations of substrings matching a regular expression by using the `Preserve()` option:
 
 ```go
 // ...
