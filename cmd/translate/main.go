@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/bounoable/dragoman"
+	"github.com/bounoable/dragoman/cli"
 	"github.com/bounoable/dragoman/format/html"
 	"github.com/bounoable/dragoman/format/json"
-	"github.com/bounoable/dragoman/internal/cli"
 	"github.com/bounoable/dragoman/service/deepl"
 	"github.com/bounoable/dragoman/text"
 	"github.com/spf13/pflag"
