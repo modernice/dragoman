@@ -92,7 +92,7 @@ func (svc *Service) Translate(ctx context.Context, text, sourceLang, targetLang 
 
 	translated, _, err := svc.client.Translate(ctx, text, deepl.Language(strings.ToUpper(targetLang)), opts...)
 	if err != nil {
-		return translated, fmt.Errorf("deepl translate: %w", err)
+		return translated, fmt.Errorf("deepl: %w", err)
 	}
 
 	return translated, nil

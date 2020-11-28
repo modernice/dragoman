@@ -240,7 +240,7 @@ func (t *Translator) translateRange(
 
 		translated, err := t.service.Translate(ctx, part, sourceLang, targetLang)
 		if err != nil {
-			return "", fmt.Errorf("translate: %w", err)
+			return "", fmt.Errorf("translate '%v': %w", part, err)
 		}
 
 		if len(leftSpace) == 0 && len(rightSpace) == 0 {

@@ -245,7 +245,7 @@ func (cli *CLI) sourceCommand(formatCmd *cobra.Command, source Source, format Fo
 				opts...,
 			)
 			if err != nil {
-				return fmt.Errorf("translate: %w", err)
+				return err
 			}
 
 			out := os.Stdout
