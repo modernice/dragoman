@@ -93,6 +93,42 @@ lines.`,
 			},
 			expected: "That was a multi-line sentence. It spanned over 4 lines.",
 		},
+		{
+			name: "nested json",
+			input: `{
+				"nested1": {
+					"nested2": {
+						"key1": "Hello.",
+						"key2": "Goodbye."
+					}
+					"nested3": {
+						"key3": "Hi.",
+						"key4": "Bye.",
+						"key5": "No."
+					}
+				}
+			}`,
+			replacements: []text.Replacement{
+				{Range: text.Range{52, 58}, Text: "Hi."},
+				{Range: text.Range{76, 84}, Text: "Goodbye, my friend. It was a pleasure."},
+				{Range: text.Range{126, 129}, Text: "Hello."},
+				{Range: text.Range{147, 151}, Text: "Farewell."},
+				{Range: text.Range{169, 172}, Text: "Sure thing."},
+			},
+			expected: `{
+				"nested1": {
+					"nested2": {
+						"key1": "Hi.",
+						"key2": "Goodbye, my friend. It was a pleasure."
+					}
+					"nested3": {
+						"key3": "Hello.",
+						"key4": "Farewell.",
+						"key5": "Sure thing."
+					}
+				}
+			}`,
+		},
 	}
 
 	for _, test := range tests {

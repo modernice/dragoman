@@ -128,32 +128,19 @@ func Replace(text, repl string, r Range) (string, error) {
 //		Replacement{Range: Range{5, 7}, Text: "I am"},
 //	) = "Hi, I am a sentence."
 func ReplaceMany(input string, replacements ...Replacement) (string, error) {
-	type offset struct {
-		start  uint
-		offset int
-	}
-
 	output := input
-	var offsets []offset
 
+	var offset int
 	for _, repl := range replacements {
-		var off int
-		for _, offset := range offsets {
-			if offset.start <= repl.Range[0] {
-				off += offset.offset
-			}
-		}
-
-		output = output[:int(repl.Range[0])+off] + repl.Text + output[int(repl.Range[1])+off:]
+		output = output[:int(repl.Range[0])+offset] + repl.Text + output[int(repl.Range[1])+offset:]
 
 		orgText, err := ExtractString(input, repl.Range)
 		if err != nil {
 			return "", fmt.Errorf("extract text: %w", err)
 		}
 
-		lenDiff := len(repl.Text) - len(orgText)
-		if lenDiff != 0 {
-			offsets = append(offsets, offset{start: repl.Range[1] + uint(off), offset: lenDiff})
+		if lenDiff := len(repl.Text) - len(orgText); lenDiff != 0 {
+			offset += lenDiff
 		}
 	}
 
