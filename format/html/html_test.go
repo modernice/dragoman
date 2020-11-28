@@ -29,6 +29,14 @@ func TestRanger_Ranges(t *testing.T) {
 			},
 		},
 		{
+			name: "only text with umlauts",
+			input: `This is a pärägräph withöut tags.
+					This is a anöther paragraph withöut tags.`,
+			expected: []text.Range{
+				{0, 80},
+			},
+		},
+		{
 			name: "simple paragraphs",
 			input: `<p>This is a paragraph.</p>
 					<p>This is another paragraph.</p>`,

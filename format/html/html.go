@@ -142,7 +142,7 @@ func (r ranger) Ranges(ctx context.Context, input io.Reader) (<-chan text.Range,
 				return
 			}
 
-			l := uint(len(tokenizer.Raw()))
+			l := uint(len([]rune(string(tokenizer.Raw()))))
 			switch tt {
 			case html.ErrorToken:
 				errs <- fmt.Errorf("tokenizer: %w", err)
