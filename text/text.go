@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sort"
 	"strings"
 )
 
@@ -128,6 +129,10 @@ func Replace(text, repl string, r Range) (string, error) {
 //		Replacement{Range: Range{5, 7}, Text: "I am"},
 //	) = "Hi, I am a sentence."
 func ReplaceMany(input string, replacements ...Replacement) (string, error) {
+	sort.Slice(replacements, func(a, b int) bool {
+		return replacements[a].Range[0] < replacements[b].Range[0]
+	})
+
 	output := input
 
 	var offset int
