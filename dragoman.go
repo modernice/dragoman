@@ -145,11 +145,11 @@ func (t *Translator) translateRanges(
 	ctx context.Context,
 	cfg translateConfig,
 	ranges <-chan text.Range,
-	input io.ReadSeeker,
+	inputReader io.Reader,
 	sourceLang, targetLang string,
-) (<-chan translatedRange, <-chan *translateRangeError) {
+) (<-chan translatedRange, <-chan error) {
 	translated := make(chan translatedRange, len(ranges))
-	errs := make(chan *translateRangeError, len(ranges))
+	errs := make(chan error, len(ranges))
 
 	workers := cfg.parallel
 	if workers < 0 {
@@ -165,9 +165,21 @@ func (t *Translator) translateRanges(
 		wg.Wait()
 	}()
 
+	readers := map[int]*strings.Reader{}
+	b, err := ioutil.ReadAll(inputReader)
+	if err != nil {
+		errs <- fmt.Errorf("read input: %w", err)
+	}
+	input := string(b)
 	for i := 0; i < workers; i++ {
-		go func() {
+		readers[i] = strings.NewReader(input)
+	}
+
+	for i := 0; i < workers; i++ {
+		go func(i int) {
 			defer wg.Done()
+			input := readers[i]
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -175,6 +187,11 @@ func (t *Translator) translateRanges(
 				case r, ok := <-ranges:
 					if !ok {
 						return
+					}
+
+					if _, err := input.Seek(0, io.SeekStart); err != nil {
+						errs <- fmt.Errorf("seek start of input: %w", err)
+						break
 					}
 
 					t, err := t.translateRange(ctx, cfg, r, input, sourceLang, targetLang)
@@ -192,7 +209,7 @@ func (t *Translator) translateRanges(
 					}
 				}
 			}
-		}()
+		}(i)
 	}
 
 	return translated, errs
@@ -202,12 +219,12 @@ func (t *Translator) translateRange(
 	ctx context.Context,
 	cfg translateConfig,
 	r text.Range,
-	input io.ReadSeeker,
+	input io.Reader,
 	sourceLang, targetLang string,
 ) (string, error) {
 	extracted, err := text.Extract(input, r)
 	if err != nil {
-		return "", fmt.Errorf("extract range: %w", err)
+		return "", fmt.Errorf("extract range %v: %w", r, err)
 	}
 
 	parts := []string{extracted}

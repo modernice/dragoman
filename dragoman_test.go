@@ -32,8 +32,8 @@ func TestTranslator_Translate(t *testing.T) {
 			Convey(
 				"When the text gets translated",
 				WithRanges(ctrl, []text.Range{
-					{13, 29}, // "This is a title."
-					{49, 71}, // "This is a description."
+					{13, 29}, // This is a title.
+					{49, 71}, // This is a description.
 				}, func(ranger text.Ranger) {
 					WithTranslations(ctrl, "EN", "DE", map[string]string{
 						"This is a title.":       "Dies ist ein Titel.",

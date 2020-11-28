@@ -25,7 +25,7 @@ type Ranger interface {
 	Ranges(context.Context, io.Reader) (<-chan Range, <-chan error)
 }
 
-// A Range consists of the start and end offsets [start, end) of a text.
+// A Range consists of a start and end rune-offset [start, end) of a text.
 type Range [2]uint
 
 // Len returns the length of the range.
@@ -54,37 +54,32 @@ func Extract(input io.Reader, r Range) (string, error) {
 		return "", &RangeError{Range: r, Message: "negative length range"}
 	}
 
-	if _, err := rs.Seek(int64(r[0]), io.SeekStart); err != nil {
-		return "", fmt.Errorf("seek pos %d: %w", r[0], err)
-	}
+	br := bufio.NewReader(rs)
 
-	if _, err := rs.Read(make([]byte, 1)); err != nil {
-		return "", &RangeError{
-			Range:   r,
-			Message: fmt.Sprintf("range start (pos %d) after input end", r[0]),
+	var run rune
+	var err error
+	for i := int(r[0]); i >= 0; i-- {
+		run, _, err = br.ReadRune()
+		if errors.Is(err, io.EOF) {
+			return "", &RangeError{
+				Range:   r,
+				Message: fmt.Sprintf("range start (pos %d) after input end", r[0]),
+			}
 		}
 	}
 
-	if _, err := rs.Seek(-1, io.SeekCurrent); err != nil {
-		return "", fmt.Errorf("seek: %w", err)
-	}
-
-	br := bufio.NewReader(rs)
-	var runes []rune
-
-	for l := rangeLen; l > 0; l-- {
+	runes := []rune{run}
+	for l := rangeLen; l > 1; l-- {
 		run, _, err := br.ReadRune()
 		if errors.Is(err, io.EOF) {
 			return "", &RangeError{
 				Range:   r,
-				Message: fmt.Sprintf("range end (pos %d) after input end (pos %d)", r[1], r[0]+uint(rangeLen-l)),
+				Message: fmt.Sprintf("range end (pos %d) after input end (pos %d)", r[1], r[0]+uint(rangeLen-l+1)),
 			}
 		}
-
 		if err != nil {
 			return "", fmt.Errorf("read rune: %w", err)
 		}
-
 		runes = append(runes, run)
 	}
 
@@ -133,23 +128,27 @@ func ReplaceMany(input string, replacements ...Replacement) (string, error) {
 		return replacements[a].Range[0] < replacements[b].Range[0]
 	})
 
-	output := input
+	output := []rune(input)
 
 	var offset int
 	for _, repl := range replacements {
-		output = output[:int(repl.Range[0])+offset] + repl.Text + output[int(repl.Range[1])+offset:]
+		var builder strings.Builder
+		builder.WriteString(string(output[:int(repl.Range[0])+offset]))
+		builder.WriteString(repl.Text)
+		builder.WriteString(string(output[int(repl.Range[1])+offset:]))
+		output = []rune(builder.String())
 
 		orgText, err := ExtractString(input, repl.Range)
 		if err != nil {
 			return "", fmt.Errorf("extract text: %w", err)
 		}
 
-		if lenDiff := len(repl.Text) - len(orgText); lenDiff != 0 {
+		if lenDiff := len([]rune(repl.Text)) - len([]rune(orgText)); lenDiff != 0 {
 			offset += lenDiff
 		}
 	}
 
-	return output, nil
+	return string(output), nil
 }
 
 // Replacement is a ReplaceMany() replacement configuration.

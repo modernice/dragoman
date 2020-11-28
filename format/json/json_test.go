@@ -83,6 +83,21 @@ func TestRanger(t *testing.T) {
 				{45, 48},
 			},
 		},
+		{
+			name: "object with umlauts",
+			input: `{
+				"nested": {
+					"key1": "Hällo.",
+					"key2": "Müst.",
+					"key3": "Göödbye."
+				}
+			}`,
+			expected: []text.Range{
+				{32, 38},
+				{55, 60},
+				{77, 85},
+			},
+		},
 	}
 
 	for _, test := range tests {

@@ -34,7 +34,7 @@ func (r ranger) Ranges(ctx context.Context, input io.Reader) (<-chan text.Range,
 				return
 			case lex.String:
 				start := uint(tok.Pos + 1)
-				end := uint(tok.Pos + len(tok.Value) - 1)
+				end := uint(tok.Pos + len([]rune(tok.Value)) - 1)
 				ranges <- text.Range{start, end}
 			}
 		}

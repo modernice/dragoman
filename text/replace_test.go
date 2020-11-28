@@ -94,12 +94,12 @@ lines.`,
 			expected: "That was a multi-line sentence. It spanned over 4 lines.",
 		},
 		{
-			name: "nested json",
+			name: "nested json, with umlauts",
 			input: `{
 				"nested1": {
 					"nested2": {
-						"key1": "Hello.",
-						"key2": "Goodbye."
+						"key1": "Hällo.",
+						"key2": "Göödbye."
 					}
 					"nested3": {
 						"key3": "Hi.",
