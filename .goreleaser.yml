@@ -8,7 +8,6 @@ builds:
       - linux
       - windows
       - darwin
-    ldflags: -w
     main: ./cmd/translate/main.go
     binary: translate
 archives:
