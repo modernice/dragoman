@@ -119,8 +119,8 @@ type TranslateOption func(*translateConfig)
 //   r, err := t.Translate(
 //     context.TODO(),
 //	   "Hello, {firstName}!",
-//	   "EN", "DE",
-//     translator.Preserve(regexp.MustCompile(`{[a-zA-Z0-9]+?}`)),
+//	   "en", "de",
+//     dragoman.Preserve(regexp.MustCompile(`{[a-zA-Z0-9]+?}`)),
 //   )
 //   // r: "Hallo, {firstName}!"
 func Preserve(expr *regexp.Regexp) TranslateOption {
