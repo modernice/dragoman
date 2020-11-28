@@ -79,7 +79,7 @@ import (
 )
 
 func translateJSONFile(path, sourceLang, targetLang string) (string, error) {
-  trans := dragoman.New(deepl.New(os.Getenv("DEEPL_AUTH_KEY")))
+  dm := dragoman.New(deepl.New(os.Getenv("DEEPL_AUTH_KEY")))
 
   f, err := os.Open()
   if err != nil {
@@ -87,7 +87,7 @@ func translateJSONFile(path, sourceLang, targetLang string) (string, error) {
   }
   defer f.Close()
 
-  translated, err := trans.Translate(
+  translated, err := dm.Translate(
     context.TODO(),
     f,
     sourceLang,
@@ -111,7 +111,7 @@ You can prevent translations of substrings matching a regular expression by usin
 
 ```go
 // ...
-res, _ := trans.Translate(
+res, _ := dm.Translate(
   context.Background(),
   strings.NewReader(`{"title": "Hello, {firstName}, how are you?"}`,
   "en", "de",

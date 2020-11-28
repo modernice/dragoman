@@ -16,9 +16,9 @@ import (
 
 func ExampleTranslator_Translate_json() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := dragoman.New(svc)
+	dm := dragoman.New(svc)
 
-	res, err := trans.Translate(
+	res, err := dm.Translate(
 		context.TODO(),
 		strings.NewReader(`{"title": "This is a title."}`),
 		"en",
@@ -34,9 +34,9 @@ func ExampleTranslator_Translate_json() {
 
 func ExampleTranslator_Translate_jsonWithPlaceholder() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := dragoman.New(svc)
+	dm := dragoman.New(svc)
 
-	res, err := trans.Translate(
+	res, err := dm.Translate(
 		context.TODO(),
 		strings.NewReader(`{"greeting": "Hello, {firstName}!"}`),
 		"en",
@@ -53,9 +53,9 @@ func ExampleTranslator_Translate_jsonWithPlaceholder() {
 
 func ExampleTranslator_Translate_html() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := dragoman.New(svc)
+	dm := dragoman.New(svc)
 
-	res, err := trans.Translate(
+	res, err := dm.Translate(
 		context.TODO(),
 		strings.NewReader(`<p>This is an example.</p>`),
 		"en",
@@ -71,9 +71,9 @@ func ExampleTranslator_Translate_html() {
 
 func ExampleTranslator_Translate_htmlWithPlaceholder() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := dragoman.New(svc)
+	dm := dragoman.New(svc)
 
-	res, err := trans.Translate(
+	res, err := dm.Translate(
 		context.TODO(),
 		strings.NewReader(`<p>Hello, {firstName}, this is an example.</p>`),
 		"en",
@@ -90,9 +90,9 @@ func ExampleTranslator_Translate_htmlWithPlaceholder() {
 
 func ExampleTranslator_Translate_htmlWithAttributes() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := dragoman.New(svc)
+	dm := dragoman.New(svc)
 
-	res, err := trans.Translate(
+	res, err := dm.Translate(
 		context.TODO(),
 		strings.NewReader(`<p title="A title tag.">Hello, here is an <img src="someimage.jpeg" alt="An alternate description."></p>`),
 		"en",
@@ -112,9 +112,9 @@ func ExampleTranslator_Translate_htmlWithAttributes() {
 
 func ExampleTranslator_Translate_htmlWithPlaceholderAndAttributes() {
 	svc := deepl.New(os.Getenv("DEEPL_AUTH_KEY"))
-	trans := dragoman.New(svc)
+	dm := dragoman.New(svc)
 
-	res, err := trans.Translate(
+	res, err := dm.Translate(
 		context.TODO(),
 		strings.NewReader(`<p title="A title tag.">Hello, {firstName}, here is an <img src="someimage.jpeg" alt="An alternate description."></p>`),
 		"en",
