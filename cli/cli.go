@@ -120,13 +120,13 @@ func WithExample(format, source, example string) Option {
 }
 
 func (cli *CLI) init() {
+	cli.initTranslator()
+
 	for _, format := range cli.formats {
 		cmd := &cobra.Command{
 			Use:   format.Name,
 			Short: format.Short,
 		}
-
-		cli.initTranslator(cmd)
 
 		cmd.PersistentFlags().StringVar(&cli.sourceLang, "from", "en", "Source language")
 		cmd.PersistentFlags().StringVar(&cli.targetLang, "into", "en", "Target language")
@@ -146,14 +146,14 @@ func (cli *CLI) init() {
 	}
 }
 
-func (cli *CLI) initTranslator(cmd *cobra.Command) {
+func (cli *CLI) initTranslator() {
 	for _, translator := range cli.translators {
 		var arg string
-		cmd.PersistentFlags().StringVar(&arg, translator.Name, "", translator.Description)
+		cli.PersistentFlags().StringVar(&arg, translator.Name, "", translator.Description)
 		cli.translatorArgs[translator.Name] = &arg
 	}
 
-	cmd.PersistentPreRunE = func(*cobra.Command, []string) error {
+	cli.PersistentPreRunE = func(*cobra.Command, []string) error {
 		svc, err := cli.newService()
 		if err != nil {
 			return fmt.Errorf("make translation service: %w", err)
