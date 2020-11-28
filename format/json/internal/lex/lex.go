@@ -77,7 +77,7 @@ type lexer struct {
 func (l *lexer) emit(tt TokenType) {
 	val := l.bufferedInput[:l.bufPos]
 	l.tokens <- Token{
-		Pos:   l.pos() - len(val),
+		Pos:   l.pos() - len([]rune(val)),
 		Type:  tt,
 		Value: val,
 	}
@@ -96,12 +96,12 @@ func (l *lexer) emitEOF() {
 }
 
 func (l *lexer) pos() int {
-	return l.consumed + l.bufPos
+	return l.consumed + len([]rune(l.bufferedInput[:l.bufPos]))
 }
 
 func (l *lexer) ignore() {
+	l.consumed = l.pos()
 	l.bufferedInput = l.bufferedInput[l.bufPos:]
-	l.consumed += l.bufPos
 	l.bufPos = 0
 }
 
@@ -273,7 +273,7 @@ L:
 
 	// store the currently buffered string, so we can emit it at a later time
 	str := l.bufferedInput[:l.bufPos]
-	pos := l.pos() - len(str)
+	pos := l.pos() - len([]rune(str))
 
 	l.skipWhitespace()
 	r = l.next()

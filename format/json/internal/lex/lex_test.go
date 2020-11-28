@@ -107,6 +107,15 @@ func TestReader(t *testing.T) {
 			},
 		},
 		{
+			name:  "flat object, with umlauts",
+			input: `{"title": "This is ä title.", "descriptiön": "This is ä descriptiön."}`,
+			expected: []lex.Token{
+				{Type: lex.String, Pos: 10, Value: `"This is ä title."`},
+				{Type: lex.String, Pos: 45, Value: `"This is ä descriptiön."`},
+				{Type: lex.EOF, Pos: 70},
+			},
+		},
+		{
 			name: "nested object, well-formed",
 			input: `{
 				"nested1": {"title": "This is the first title.", "description": "This is the first description."},
