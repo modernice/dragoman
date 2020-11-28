@@ -1,6 +1,6 @@
 # Dragoman - Translate structured documents
 
-[![PkgGoDev](https://pkg.go.dev/badge/bounoable/dragoman)](https://pkg.go.dev/bounoable/dragoman)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/bounoable/dragoman)](https://pkg.go.dev/github.com/bounoable/dragoman)
 
 ## TL;DR – Translate JSON files, but preserve key names!
 
