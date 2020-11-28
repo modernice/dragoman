@@ -46,6 +46,23 @@ func TestRanger(t *testing.T) {
 			},
 		},
 		{
+			name: "more nested object",
+			input: `{
+				"nested": {
+					"title": "This is a title.",
+					"description": "This is a description.",
+					"nested2": {
+						"nested3": "Hello."
+					}
+				}
+			}`,
+			expected: []text.Range{
+				{33, 49},
+				{73, 95},
+				{134, 140},
+			},
+		},
+		{
 			name:  "flat array",
 			input: `["Hello", "Bob"]`,
 			expected: []text.Range{

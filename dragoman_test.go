@@ -59,13 +59,15 @@ func TestTranslator_Translate(t *testing.T) {
 
 		Convey("Given a JSON file with placeholders", func() {
 			input := strings.NewReader(`{
-	"title": "Hello, {firstName}, how are you {day}?",
-	"description": "This is a sentence with a {placeholder} variable."
+	"meta": {
+		"title": "Hello, {firstName}, how are you {day}?",
+		"description": "This is a sentence with a {placeholder} variable."
+	}
 }`)
 
 			Convey("Given a JSON ranger", WithRanges(ctrl, []text.Range{
-				{13, 51},  // "Hello, {firstName}, how are you {day}?"
-				{71, 120}, // "This is a sentence with a {placeholder} variable."
+				{25, 63},  // "Hello, {firstName}, how are you {day}?"
+				{84, 133}, // "This is a sentence with a {placeholder} variable."
 			}, func(ranger text.Ranger) {
 				Convey("When the text gets translated with the `Preserve()` option", WithTranslations(
 					ctrl, "EN", "DE",
@@ -92,8 +94,10 @@ func TestTranslator_Translate(t *testing.T) {
 
 						Convey("The string values should be translated, but the placeholders not", func() {
 							So(string(result), ShouldEqual, `{
-	"title": "Hallo, {firstName}, wie geht es Ihnen {day}?",
-	"description": "Dies ist ein Satz mit einer {placeholder} Variable."
+	"meta": {
+		"title": "Hallo, {firstName}, wie geht es Ihnen {day}?",
+		"description": "Dies ist ein Satz mit einer {placeholder} Variable."
+	}
 }`)
 						})
 					},
