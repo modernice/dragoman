@@ -134,9 +134,6 @@ func (cli *CLI) init() {
 		cmd.PersistentFlags().StringVarP(&cli.out, "out", "o", "", "Write the result to the specified filepath")
 		cmd.PersistentFlags().IntVarP(&cli.parallel, "parallel", "p", 1, "Max concurrent translation requests")
 
-		cmd.MarkPersistentFlagRequired("from")
-		cmd.MarkPersistentFlagRequired("into")
-
 		if format.Flags != nil {
 			format.Flags(cmd.PersistentFlags())
 		}
