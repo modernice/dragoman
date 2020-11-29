@@ -103,7 +103,7 @@ func translateJSONFile(path, sourceLang, targetLang string) (string, error) {
 }
 ```
 
-For more examples visit [**pkg.go.dev**](https://pkg.go.dev/bounoable/dragoman) or [**example_test.go**](./example_test.go).
+For more examples visit [**pkg.go.dev**](https://pkg.go.dev/github.com/bounoable/dragoman) or [**example_test.go**](./example_test.go).
 
 ## Preserve substrings (placeholders)
 
