@@ -4,7 +4,7 @@
 
 ## TL;DR – Translate JSON files, but preserve key names!
 
-Translate the file `i18n/en.json` from `English` into `German` via `DeepL` while preserving placeholders and write the result into `i18n/de.json`:
+Translate the file `i18n/en.json` from `English` into `German` via `DeepL` while preserving placeholders and write the result to `i18n/de.json`:
 
 ```sh
 translate json file i18n/en.json -o i18n/de.json --from en --into de --preserve '{[a-zA-Z]+?}' --deepl $DEEPL_AUTH_KEY
