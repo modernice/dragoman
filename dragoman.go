@@ -22,29 +22,14 @@ var (
 )
 
 // New returns a structured-text translator.
-func New(service Service) *Dragoman {
-	return &Dragoman{
+func New(service Service) *Translator {
+	return &Translator{
 		service: service,
 	}
 }
 
 // Translator is a structured-text translator.
-type Translator interface {
-	// Translate the file input from sourceLang into targetLang using the
-	// specified text.Ranger and TranslateOptions.
-	Translate(
-		ctx context.Context,
-		input io.Reader,
-		sourceLang, targetLang string,
-		ranger text.Ranger,
-		opts ...TranslateOption,
-	) ([]byte, error)
-}
-
-// Dragoman is a structured-text translator.
-type Dragoman struct {
-	Translator
-
+type Translator struct {
 	service Service
 }
 
@@ -54,7 +39,7 @@ type Service interface {
 }
 
 // Translate the contents of input from sourceLang to targetLang.
-func (t *Dragoman) Translate(
+func (t *Translator) Translate(
 	ctx context.Context,
 	input io.Reader,
 	sourceLang, targetLang string,
@@ -156,7 +141,7 @@ type translateConfig struct {
 	parallel int
 }
 
-func (t *Dragoman) translateRanges(
+func (t *Translator) translateRanges(
 	ctx context.Context,
 	cfg translateConfig,
 	ranges <-chan text.Range,
@@ -230,7 +215,7 @@ func (t *Dragoman) translateRanges(
 	return translated, errs
 }
 
-func (t *Dragoman) translateRange(
+func (t *Translator) translateRange(
 	ctx context.Context,
 	cfg translateConfig,
 	r text.Range,

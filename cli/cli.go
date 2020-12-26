@@ -50,7 +50,7 @@ type CLI struct {
 	preserve       string
 	parallel       int
 
-	translator dragoman.Translator
+	translator *dragoman.Translator
 }
 
 // Translator is a translation service configuration.

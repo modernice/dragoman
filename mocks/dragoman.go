@@ -6,55 +6,9 @@ package mock_dragoman
 
 import (
 	context "context"
-	dragoman "github.com/bounoable/dragoman"
-	text "github.com/bounoable/dragoman/text"
 	gomock "github.com/golang/mock/gomock"
-	io "io"
 	reflect "reflect"
 )
-
-// MockTranslator is a mock of Translator interface
-type MockTranslator struct {
-	ctrl     *gomock.Controller
-	recorder *MockTranslatorMockRecorder
-}
-
-// MockTranslatorMockRecorder is the mock recorder for MockTranslator
-type MockTranslatorMockRecorder struct {
-	mock *MockTranslator
-}
-
-// NewMockTranslator creates a new mock instance
-func NewMockTranslator(ctrl *gomock.Controller) *MockTranslator {
-	mock := &MockTranslator{ctrl: ctrl}
-	mock.recorder = &MockTranslatorMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use
-func (m *MockTranslator) EXPECT() *MockTranslatorMockRecorder {
-	return m.recorder
-}
-
-// Translate mocks base method
-func (m *MockTranslator) Translate(ctx context.Context, input io.Reader, sourceLang, targetLang string, ranger text.Ranger, opts ...dragoman.TranslateOption) ([]byte, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{ctx, input, sourceLang, targetLang, ranger}
-	for _, a := range opts {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "Translate", varargs...)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Translate indicates an expected call of Translate
-func (mr *MockTranslatorMockRecorder) Translate(ctx, input, sourceLang, targetLang, ranger interface{}, opts ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{ctx, input, sourceLang, targetLang, ranger}, opts...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Translate", reflect.TypeOf((*MockTranslator)(nil).Translate), varargs...)
-}
 
 // MockService is a mock of Service interface
 type MockService struct {
