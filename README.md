@@ -1,6 +1,6 @@
 # Dragoman - Translate structured documents
 
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/bounoable/dragoman)](https://pkg.go.dev/github.com/bounoable/dragoman)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/bounoable/dragoman)](https://pkg.go.dev/github.com/bounoable/dragoman) ![Test](https://github.com/bounoable/dragoman/workflows/Test/badge.svg)
 
 ## TL;DR – Translate JSON files, but preserve key names!
 
@@ -46,16 +46,20 @@ go get github.com/bounoable/dragoman
 
 ## Usage with CLI
 
-Run the following example command to translate the JSON file `en.json` from English into German:
+### Translate file
+
+The following example translates the JSON file `en.json` from English into German and writes the result to `de.json`:
 
 ```sh
 translate json file en.json -o de.json --from en --into de --deepl $DEEPL_AUTH_KEY
 ```
 
-The syntax for translating files looks like this:
+### Translate directory
+
+The following example translates all JSON files in the directory `i18n/en` from English into German and writes the result to `i18n/de`:
 
 ```sh
-translate FORMAT SOURCE CONTENT --opt1 --opt2 ...
+translate json dir i18n/en -o i18n/de --from en --into de --deepl $DEEPL_AUTH_KEY
 ```
 
 ### Supported formats
@@ -67,6 +71,7 @@ translate FORMAT SOURCE CONTENT --opt1 --opt2 ...
 
 - [x] `text`
 - [x] `file`
+- [x] `dir`
 - [ ] `url`
 
 ## Use as library

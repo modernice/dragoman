@@ -146,6 +146,7 @@ func (cli *CLI) init() {
 		for _, source := range cli.sources {
 			cli.sourceCommand(cmd, source, format)
 		}
+		cli.sourceCommand(cmd, Source{Name: "dir"}, format)
 
 		cli.AddCommand(cmd)
 	}
@@ -216,9 +217,10 @@ func (cli *CLI) sourceCommand(formatCmd *cobra.Command, source Source, format Fo
 		Short:   fmt.Sprintf("%s (%s)", formatCmd.Short, source.Name),
 		Example: cli.example(format.Name, source.Name),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if format.Name != "file" {
+			if source.Name != "dir" {
 				return cli.translateSingleFile(cmd.Context(), format, source, args[0])
 			}
+
 			dir, err := isDir(args[0])
 			if err != nil {
 				return err
