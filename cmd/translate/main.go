@@ -35,6 +35,7 @@ func main() {
 		cli.WithFormat(
 			cli.Format{
 				Name:  "json",
+				Ext:   ".json",
 				Short: "Translate JSON",
 				Ranger: func() (text.Ranger, error) {
 					return json.Ranger(), nil
@@ -42,6 +43,7 @@ func main() {
 			},
 			cli.Format{
 				Name:  "html",
+				Ext:   ".html",
 				Short: "Translate HTML",
 				Flags: func(flags *pflag.FlagSet) {
 					flags.StringSliceVar(&htmlAttrs, "attr", nil, `HTML tag attributes to be translated (e.g. "alt", "title")`)

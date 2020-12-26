@@ -25,6 +25,14 @@ func TestDirectory_Path(t *testing.T) {
 	assert.Equal(t, "/foo/bar", dir.Path())
 }
 
+func TestDirectory_Absolute(t *testing.T) {
+	dir := directory.New("/foo/bar")
+	assert.Equal(t, "/foo/bar/baz", dir.Absolute("baz"))
+	assert.Equal(t, "/foo/bar/baz/foobar.json", dir.Absolute("baz/foobar.json"))
+	assert.Equal(t, "/foo/bar/baz/foobar.json", dir.Absolute("/baz/foobar.json"))
+	assert.Equal(t, "/foo/bar/baz/foobar.json", dir.Absolute("./baz/foobar.json"))
+}
+
 func TestDirectory_Files(t *testing.T) {
 	wd, _ := os.Getwd()
 	p := filepath.Join(wd, "testdata")

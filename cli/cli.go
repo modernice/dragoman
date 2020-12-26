@@ -1,14 +1,17 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/bounoable/dragoman"
+	"github.com/bounoable/dragoman/directory"
 	"github.com/bounoable/dragoman/text"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -68,6 +71,8 @@ type Translator struct {
 type Format struct {
 	// Name will be used as the CLI command name.
 	Name string
+	// Ext is the file extension of the file format (with leading dot).
+	Ext string
 	// Short is the short CLI description.
 	Short string
 	// Flags is an optional function that accepts the flag set for the command.
@@ -211,68 +216,148 @@ func (cli *CLI) sourceCommand(formatCmd *cobra.Command, source Source, format Fo
 		Short:   fmt.Sprintf("%s (%s)", formatCmd.Short, source.Name),
 		Example: cli.example(format.Name, source.Name),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			r, err := source.Reader(args[0])
-			if err != nil {
-				return fmt.Errorf("Source.Reader(%v) failed: %w", args[0], err)
+			if format.Name != "file" {
+				return cli.translateSingleFile(cmd.Context(), format, source, args[0])
 			}
-			if c, ok := r.(io.Closer); ok {
-				defer c.Close()
-			}
-
-			opts := []dragoman.TranslateOption{
-				dragoman.Parallel(cli.parallel),
-			}
-
-			if cli.preserve != "" {
-				expr, err := regexp.Compile(cli.preserve)
-				if err != nil {
-					return fmt.Errorf("compile regexp (%v): %w", cli.preserve, err)
-				}
-				opts = append(opts, dragoman.Preserve(expr))
-			}
-
-			ranger, err := format.Ranger()
-			if err != nil {
-				return fmt.Errorf("make ranger: %w", err)
-			}
-
-			res, err := cli.translator.Translate(
-				cmd.Context(),
-				r,
-				cli.sourceLang,
-				cli.targetLang,
-				ranger,
-				opts...,
-			)
+			dir, err := isDir(args[0])
 			if err != nil {
 				return err
 			}
-
-			out := os.Stdout
-			var f *os.File
-
-			if cli.out != "" {
-				if f, err = os.Create(cli.out); err != nil {
-					return fmt.Errorf("create outfile (%v): %w", cli.out, err)
-				}
-				out = f
+			if !dir {
+				return cli.translateSingleFile(cmd.Context(), format, source, args[0])
 			}
-
-			if _, err = fmt.Fprint(out, string(res)); err != nil {
-				return fmt.Errorf("write result: %w", err)
-			}
-
-			if f != nil {
-				if err = f.Close(); err != nil {
-					return fmt.Errorf("close outfile: %w", err)
-				}
-			}
-
-			return nil
+			return cli.translateDirectory(cmd.Context(), format, source, args[0])
 		},
 	}
 
 	formatCmd.AddCommand(cmd)
+}
+
+func (cli *CLI) translateSingleFile(ctx context.Context, format Format, source Source, p string) error {
+	r, err := source.Reader(p)
+	if err != nil {
+		return fmt.Errorf("read file %s: %w", p, err)
+	}
+	if c, ok := r.(io.Closer); ok {
+		defer c.Close()
+	}
+
+	opts := []dragoman.TranslateOption{
+		dragoman.Parallel(cli.parallel),
+	}
+
+	if cli.preserve != "" {
+		expr, err := regexp.Compile(cli.preserve)
+		if err != nil {
+			return fmt.Errorf("compile regexp (%v): %w", cli.preserve, err)
+		}
+		opts = append(opts, dragoman.Preserve(expr))
+	}
+
+	ranger, err := format.Ranger()
+	if err != nil {
+		return fmt.Errorf("make ranger: %w", err)
+	}
+
+	res, err := cli.translator.Translate(
+		ctx,
+		r,
+		cli.sourceLang,
+		cli.targetLang,
+		ranger,
+		opts...,
+	)
+	if err != nil {
+		return fmt.Errorf("translate: %w", err)
+	}
+
+	out := os.Stdout
+	var f *os.File
+
+	if cli.out != "" {
+		if f, err = os.Create(cli.out); err != nil {
+			return fmt.Errorf("create outfile (%v): %w", cli.out, err)
+		}
+		out = f
+	}
+
+	if _, err = fmt.Fprint(out, string(res)); err != nil {
+		return fmt.Errorf("write result: %w", err)
+	}
+
+	if f != nil {
+		if err = f.Close(); err != nil {
+			return fmt.Errorf("close outfile: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (cli *CLI) translateDirectory(ctx context.Context, format Format, source Source, p string) error {
+	var outPath string
+	if cli.out != "" {
+		var err error
+		if outPath, err = filepath.Abs(cli.out); err != nil {
+			return fmt.Errorf("filepath.Abs(%s): %w", cli.out, err)
+		}
+
+		ex, err := exists(cli.out)
+		if err != nil {
+			return err
+		}
+
+		if !ex {
+			if err = os.MkdirAll(outPath, os.ModePerm); err != nil {
+				return fmt.Errorf("create out directory %s: %w", outPath, err)
+			}
+		}
+
+		dir, err := isDir(cli.out)
+		if err != nil {
+			return err
+		}
+		if !dir {
+			return fmt.Errorf("out path must be a directory because input path is a directory")
+		}
+	}
+
+	opts := []dragoman.TranslateOption{
+		dragoman.Parallel(cli.parallel),
+	}
+
+	if cli.preserve != "" {
+		expr, err := regexp.Compile(cli.preserve)
+		if err != nil {
+			return fmt.Errorf("compile regexp (%v): %w", cli.preserve, err)
+		}
+		opts = append(opts, dragoman.Preserve(expr))
+	}
+
+	rang, err := format.Ranger()
+	if err != nil {
+		return fmt.Errorf("creat ranger for format %s: %w", format.Name, err)
+	}
+	dir := directory.New(p, directory.Ranger(format.Ext, rang))
+
+	res, err := dir.Translate(ctx, cli.translator, cli.sourceLang, cli.targetLang, opts...)
+	if err != nil {
+		return fmt.Errorf("translate directory: %w", err)
+	}
+
+	if cli.out == "" {
+		printDirectoryResult(dir, res)
+		return nil
+	}
+
+	outDir := directory.New(outPath)
+	for p, s := range res {
+		if err = writeDirectoryResult(outDir.Absolute(p), s); err != nil {
+			return fmt.Errorf("write result: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (cli *CLI) example(format, source string) string {
@@ -302,4 +387,55 @@ func (err humanError) Error() string {
 
 func (err humanError) HumanError() string {
 	return err.message
+}
+
+func isDir(p string) (bool, error) {
+	info, err := os.Stat(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("os.Stat(%s): %w", p, err)
+	}
+	return info.IsDir(), nil
+}
+
+func exists(p string) (bool, error) {
+	if _, err := os.Stat(p); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("os.Stat(%s): %w", p, err)
+	}
+	return true, nil
+}
+
+func printDirectoryResult(dir directory.Dir, res map[string]string) {
+	for p, s := range res {
+		fmt.Fprintf(os.Stdout, "# %s\n", dir.Absolute(p))
+		fmt.Fprint(os.Stdout, s)
+		fmt.Fprint(os.Stdout, "\n")
+	}
+}
+
+func writeDirectoryResult(p string, s string) error {
+	dir := filepath.Dir(p)
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return fmt.Errorf("create directory %s: %w", dir, err)
+	}
+
+	f, err := os.Create(p)
+	if err != nil {
+		return fmt.Errorf("create file %s: %w", p, err)
+	}
+
+	if _, err = fmt.Fprint(f, s); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("close file %s: %w", p, err)
+	}
+
+	return nil
 }

@@ -77,6 +77,11 @@ func (d Dir) Path() string {
 	return d.path
 }
 
+// Absolute returns the absolute path of the relative filepath p.
+func (d Dir) Absolute(p string) string {
+	return filepath.Join(d.Path(), p)
+}
+
 // Files recursively walks the directory and returns a map of filepaths to
 // strings.Readers. Filepaths are relative to d.Path() and have no leading path
 // seperator. Only files with an extension that has a text.Ranger registered in
