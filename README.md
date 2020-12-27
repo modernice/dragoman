@@ -2,7 +2,7 @@
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/bounoable/dragoman)](https://pkg.go.dev/github.com/bounoable/dragoman) ![Test](https://github.com/bounoable/dragoman/workflows/Test/badge.svg)
 
-## TL;DR – Translate JSON files, but preserve key names!
+## TL;DR – Translate JSON files, but preserve keys!
 
 Translate the file `i18n/en.json` from `English` into `German` via `DeepL` while preserving placeholders and write the result to `i18n/de.json`:
 
@@ -30,23 +30,42 @@ File gets translated, but property names and placeholder variables are preserved
 
 ## Installation
 
-**At the time of this writing only DeepL is implemented as a translation service, so you need a DeepL Pro Account and your authentication key.**
-
 ### CLI
 
 ```sh
 go get github.com/bounoable/dragoman/cmd/translate
 ```
 
-### As a library
+### API
 
 ```sh
 go get github.com/bounoable/dragoman
 ```
 
-## Usage with CLI
+## CLI
 
-### Translate file
+### Authentication
+
+Choose and authenticate the underlying translation service by providing either one of these options:
+
+- `--deepl $DEEPL_AUTH_KEY` to use [DeepL](https://deepl.com) with your DeepL API key
+- `--gcloud $CREDENTIALS_FILE` to use authenticate [Google Cloud Translation](https://cloud.google.com/translate) with a credentials file
+
+**DeeplL:**
+```sh
+translate json text '{"foo": "Hello, my friend."}' --from en --into de --deepl $DEEPL_AUTH_KEY
+
+# Output: {"foo": "Hallo, mein Freund."}
+```
+
+**Google Cloud Translation:**
+```sh
+translate json text '{"foo": "Hello, my friend."}' --from en --into de --gcloud ./credentials.json
+
+# Output: {"foo": "Hallo, mein Freund."}
+```
+
+### Translate files
 
 The following example translates the JSON file `en.json` from English into German and writes the result to `de.json`:
 
@@ -54,12 +73,20 @@ The following example translates the JSON file `en.json` from English into Germa
 translate json file en.json -o de.json --from en --into de --deepl $DEEPL_AUTH_KEY
 ```
 
-### Translate directory
+### Translate directories
 
 The following example translates all JSON files in the directory `i18n/en` from English into German and writes the result to `i18n/de`:
 
 ```sh
 translate json dir i18n/en -o i18n/de --from en --into de --deepl $DEEPL_AUTH_KEY
+```
+
+### Preserve substrings (placeholders)
+
+```sh
+translate json text '{"foo": "Hello, {firstName}."}' --from en --into de --preserve '{[a-zA-Z]+?}' --deepl $DEEPL_AUTH_KEY
+
+# Output: {"foo": "Hallo, {firstName}."}
 ```
 
 ### Supported formats
@@ -74,7 +101,33 @@ translate json dir i18n/en -o i18n/de --from en --into de --deepl $DEEPL_AUTH_KE
 - [x] `dir`
 - [ ] `url`
 
-## Use as library
+## API
+
+### Authentication
+
+**Deepl:**
+```go
+import (
+  "github.com/bounoable/dragoman"
+  "github.com/bounoable/dragoman/service/deepl"
+)
+
+dm := dragoman.New(deepl.New(os.Getenv("DEEPL_AUTH_KEY")))
+```
+
+**Google Cloud Translation:**
+```go
+import (
+  "github.com/bounoable/dragoman"
+  "github.com/bounoable/dragoman/service/gcloud"
+)
+
+svc, err := gcloud.NewFromCredentialsFile(context.TODO(), "./credentials.json")
+// handle err
+dm := dragoman.New(svc)
+```
+
+### Translate files
 
 ```go
 import (
