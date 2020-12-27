@@ -18,11 +18,12 @@ import (
 )
 
 // New returns the translator CLI, configured by opts.
-func New(opts ...Option) *CLI {
+func New(version string, opts ...Option) *CLI {
 	cli := &CLI{
 		Command: cobra.Command{
-			Use:   "translate",
-			Short: "Translate structured documents",
+			Use:     "translate",
+			Short:   "Translate structured documents",
+			Version: version,
 		},
 		examples:       make(map[string]map[string]string),
 		translatorArgs: make(map[string]*string),

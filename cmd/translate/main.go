@@ -18,6 +18,8 @@ import (
 	"github.com/spf13/pflag"
 )
 
+var version string
+
 func main() {
 	var (
 		htmlAttrs     []string
@@ -25,6 +27,7 @@ func main() {
 	)
 
 	if err := cli.New(
+		version,
 		cli.WithTranslator(
 			cli.Translator{
 				Name:        "deepl",
