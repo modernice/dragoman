@@ -64,7 +64,7 @@ type Translator struct {
 	// Description is the usage message for the CLI flag.
 	Description string
 	// New accepts the flag value (authentication key) and creates the translation service.
-	New func(string) (dragoman.Service, error)
+	New func(context.Context, string) (dragoman.Service, error)
 }
 
 // Format is a format cofiguration.
@@ -159,8 +159,8 @@ func (cli *CLI) initTranslator() {
 		cli.translatorArgs[translator.Name] = &arg
 	}
 
-	cli.PersistentPreRunE = func(*cobra.Command, []string) error {
-		svc, err := cli.newService()
+	cli.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		svc, err := cli.newService(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("make translation service: %w", err)
 		}
@@ -169,7 +169,7 @@ func (cli *CLI) initTranslator() {
 	}
 }
 
-func (cli *CLI) newService() (dragoman.Service, error) {
+func (cli *CLI) newService(ctx context.Context) (dragoman.Service, error) {
 	for name, arg := range cli.translatorArgs {
 		if *arg == "" {
 			continue
@@ -180,7 +180,7 @@ func (cli *CLI) newService() (dragoman.Service, error) {
 			continue
 		}
 
-		svc, err := trans.New(*arg)
+		svc, err := trans.New(ctx, *arg)
 		if err != nil {
 			return svc, fmt.Errorf("Translator.New(%v) failed: %w", *arg, err)
 		}

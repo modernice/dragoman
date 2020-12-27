@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"github.com/bounoable/dragoman/format/html"
 	"github.com/bounoable/dragoman/format/json"
 	"github.com/bounoable/dragoman/service/deepl"
+	"github.com/bounoable/dragoman/service/gcloud"
 	"github.com/bounoable/dragoman/text"
 	"github.com/spf13/pflag"
 )
@@ -27,8 +29,15 @@ func main() {
 			cli.Translator{
 				Name:        "deepl",
 				Description: "DeepL authentication key",
-				New: func(authKey string) (dragoman.Service, error) {
+				New: func(_ context.Context, authKey string) (dragoman.Service, error) {
 					return deepl.New(authKey), nil
+				},
+			},
+			cli.Translator{
+				Name:        "gcloud",
+				Description: "Path to Google Cloud credentials",
+				New: func(ctx context.Context, path string) (dragoman.Service, error) {
+					return gcloud.NewFromCredentialsFile(ctx, path)
 				},
 			},
 		),
