@@ -220,14 +220,6 @@ func (cli *CLI) sourceCommand(formatCmd *cobra.Command, source Source, format Fo
 			if source.Name != "dir" {
 				return cli.translateSingleFile(cmd.Context(), format, source, args[0])
 			}
-
-			dir, err := isDir(args[0])
-			if err != nil {
-				return err
-			}
-			if !dir {
-				return cli.translateSingleFile(cmd.Context(), format, source, args[0])
-			}
 			return cli.translateDirectory(cmd.Context(), format, source, args[0])
 		},
 	}
@@ -296,7 +288,20 @@ func (cli *CLI) translateSingleFile(ctx context.Context, format Format, source S
 	return nil
 }
 
-func (cli *CLI) translateDirectory(ctx context.Context, format Format, source Source, p string) error {
+func (cli *CLI) translateDirectory(ctx context.Context, format Format, source Source, relPath string) error {
+	var err error
+	p, err := filepath.Abs(relPath)
+	if err != nil {
+		return fmt.Errorf("filepath.Abs(%s): %w", relPath, err)
+	}
+	id, err := isDir(p)
+	if err != nil {
+		return err
+	}
+	if !id {
+		return fmt.Errorf("input path must be a directory")
+	}
+
 	var outPath string
 	if cli.out != "" {
 		var err error
