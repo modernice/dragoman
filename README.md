@@ -51,7 +51,7 @@ Choose and authenticate the underlying translation service by providing either o
 - `--deepl $DEEPL_AUTH_KEY` to use [DeepL](https://deepl.com) with your DeepL API key
 - `--gcloud $CREDENTIALS_FILE` to use [Google Cloud Translation](https://cloud.google.com/translate) and authenticate with a credentials file
 
-**DeeplL:**
+**DeepL:**
 ```sh
 translate json text '{"foo": "Hello, my friend."}' --from en --into de --deepl $DEEPL_AUTH_KEY
 
