@@ -49,7 +49,7 @@ go get github.com/bounoable/dragoman
 Choose and authenticate the underlying translation service by providing either one of these options:
 
 - `--deepl $DEEPL_AUTH_KEY` to use [DeepL](https://deepl.com) with your DeepL API key
-- `--gcloud $CREDENTIALS_FILE` to use authenticate [Google Cloud Translation](https://cloud.google.com/translate) with a credentials file
+- `--gcloud $CREDENTIALS_FILE` to use [Google Cloud Translation](https://cloud.google.com/translate) and authenticate with a credentials file
 
 **DeeplL:**
 ```sh
