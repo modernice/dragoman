@@ -116,13 +116,14 @@ type TranslateOption func(*translateConfig)
 // Preserve (prevent translation of) strings that match the given expr.
 //
 // A typical use case are placeholder variables. Example:
-//   r, err := t.Translate(
-//     context.TODO(),
-//	   "Hello, {firstName}!",
-//	   "en", "de",
-//     dragoman.Preserve(regexp.MustCompile(`{[a-zA-Z0-9]+?}`)),
-//   )
-//   // r: "Hallo, {firstName}!"
+//
+//	  r, err := t.Translate(
+//	    context.TODO(),
+//		   "Hello, {firstName}!",
+//		   "en", "de",
+//	    dragoman.Preserve(regexp.MustCompile(`{[a-zA-Z0-9]+?}`)),
+//	  )
+//	  // r: "Hallo, {firstName}!"
 func Preserve(expr *regexp.Regexp) TranslateOption {
 	return func(cfg *translateConfig) {
 		cfg.preserve = expr
@@ -136,9 +137,17 @@ func Parallel(n int) TranslateOption {
 	}
 }
 
+// EscapeDoubleQuotes configures if the double-quotes in the translation results should be escaped.
+func EscapeDoubleQuotes(escape bool) TranslateOption {
+	return func(cfg *translateConfig) {
+		cfg.escapeDoubleQuotes = escape
+	}
+}
+
 type translateConfig struct {
-	preserve *regexp.Regexp
-	parallel int
+	preserve           *regexp.Regexp
+	parallel           int
+	escapeDoubleQuotes bool
 }
 
 func (t *Translator) translateRanges(
@@ -215,6 +224,11 @@ func (t *Translator) translateRanges(
 	return translated, errs
 }
 
+var (
+	doubleQuotesRE       = regexp.MustCompile(`([^\\])"`)
+	doubleQuotesPrefixRE = regexp.MustCompile(`^"`)
+)
+
 func (t *Translator) translateRange(
 	ctx context.Context,
 	cfg translateConfig,
@@ -258,6 +272,11 @@ func (t *Translator) translateRange(
 		translated, err := t.service.Translate(ctx, part, sourceLang, targetLang)
 		if err != nil {
 			return "", fmt.Errorf("translate '%v': %w", part, err)
+		}
+
+		if cfg.escapeDoubleQuotes {
+			translated = doubleQuotesPrefixRE.ReplaceAllString(translated, `\"`)
+			translated = doubleQuotesRE.ReplaceAllString(translated, `$1\"`)
 		}
 
 		if len(leftSpace) == 0 && len(rightSpace) == 0 {

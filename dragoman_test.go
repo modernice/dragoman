@@ -241,6 +241,38 @@ func TestTranslator_Translate(t *testing.T) {
 			}))
 		})
 	})
+
+	Convey("Double quote handling", t, func() {
+		ctrl := gomock.NewController(t)
+		Reset(ctrl.Finish)
+
+		Convey("Given a JSON string with double quotes", func() {
+			input := `"\"one\", \"two\", \"three\""`
+
+			Convey("And a text ranger", WithRanges(ctrl, []text.Range{{1, 28}}, func(ranger text.Ranger) {
+				Convey("Then the translated text should also escape the double quotes", WithTranslations(
+					ctrl,
+					"EN", "EN",
+					map[string]string{
+						`\"one\", \"two\", \"three\"`: `"one", "two", "three"`,
+					},
+					func(svc dragoman.Service) {
+						trans := dragoman.New(svc)
+						res, err := trans.Translate(
+							context.Background(),
+							strings.NewReader(input),
+							"EN", "EN",
+							ranger,
+							dragoman.EscapeDoubleQuotes(true),
+						)
+
+						So(err, ShouldBeNil)
+						So(string(res), ShouldEqual, `"\"one\", \"two\", \"three\""`)
+					}),
+				)
+			}))
+		})
+	})
 }
 
 func WithRanges(ctrl *gomock.Controller, ranges []text.Range, f func(text.Ranger)) func() {
