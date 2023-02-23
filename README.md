@@ -33,7 +33,7 @@ File gets translated, but property names and placeholder variables are preserved
 ### CLI
 
 ```sh
-go get github.com/bounoable/dragoman/cmd/translate
+go install github.com/bounoable/dragoman/cmd/translate@latest
 ```
 
 ### API
