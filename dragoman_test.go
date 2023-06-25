@@ -263,7 +263,6 @@ func TestTranslator_Translate(t *testing.T) {
 							strings.NewReader(input),
 							"EN", "EN",
 							ranger,
-							dragoman.EscapeDoubleQuotes(true),
 						)
 
 						So(err, ShouldBeNil)
