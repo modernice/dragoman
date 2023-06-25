@@ -47,13 +47,12 @@ type CLI struct {
 	examples    map[string]map[string]string // map[FORMAT]map[SOURCE]EXAMPLE
 
 	// flags
-	translatorArgs     map[string]*string
-	sourceLang         string
-	targetLang         string
-	out                string
-	preserve           string
-	parallel           int
-	escapeDoubleQuotes bool
+	translatorArgs map[string]*string
+	sourceLang     string
+	targetLang     string
+	out            string
+	preserve       string
+	parallel       int
 
 	translator *dragoman.Translator
 }
@@ -140,7 +139,6 @@ func (cli *CLI) init() {
 		cmd.PersistentFlags().StringVar(&cli.preserve, "preserve", "", "Prevent translation of substrings (regular expression)")
 		cmd.PersistentFlags().StringVarP(&cli.out, "out", "o", "", "Write the result to the specified filepath")
 		cmd.PersistentFlags().IntVarP(&cli.parallel, "parallel", "p", 1, "Max concurrent translation requests")
-		cmd.PersistentFlags().BoolVarP(&cli.escapeDoubleQuotes, "escape", "e", false, "Escape double quotes in translation results")
 
 		if format.Flags != nil {
 			format.Flags(cmd.PersistentFlags())
@@ -239,10 +237,7 @@ func (cli *CLI) translateSingleFile(ctx context.Context, format Format, source S
 		defer c.Close()
 	}
 
-	opts := []dragoman.TranslateOption{
-		dragoman.Parallel(cli.parallel),
-		dragoman.EscapeDoubleQuotes(cli.escapeDoubleQuotes),
-	}
+	opts := []dragoman.TranslateOption{dragoman.Parallel(cli.parallel)}
 
 	if cli.preserve != "" {
 		expr, err := regexp.Compile(cli.preserve)
@@ -333,10 +328,7 @@ func (cli *CLI) translateDirectory(ctx context.Context, format Format, source So
 		}
 	}
 
-	opts := []dragoman.TranslateOption{
-		dragoman.Parallel(cli.parallel),
-		dragoman.EscapeDoubleQuotes(cli.escapeDoubleQuotes),
-	}
+	opts := []dragoman.TranslateOption{dragoman.Parallel(cli.parallel)}
 
 	if cli.preserve != "" {
 		expr, err := regexp.Compile(cli.preserve)
