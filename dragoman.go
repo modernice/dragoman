@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode"
@@ -137,17 +138,9 @@ func Parallel(n int) TranslateOption {
 	}
 }
 
-// EscapeDoubleQuotes configures if the double-quotes in the translation results should be escaped.
-func EscapeDoubleQuotes(escape bool) TranslateOption {
-	return func(cfg *translateConfig) {
-		cfg.escapeDoubleQuotes = escape
-	}
-}
-
 type translateConfig struct {
-	preserve           *regexp.Regexp
-	parallel           int
-	escapeDoubleQuotes bool
+	preserve *regexp.Regexp
+	parallel int
 }
 
 func (t *Translator) translateRanges(
@@ -224,11 +217,6 @@ func (t *Translator) translateRanges(
 	return translated, errs
 }
 
-var (
-	doubleQuotesRE       = regexp.MustCompile(`([^\\])"`)
-	doubleQuotesPrefixRE = regexp.MustCompile(`^"`)
-)
-
 func (t *Translator) translateRange(
 	ctx context.Context,
 	cfg translateConfig,
@@ -274,10 +262,8 @@ func (t *Translator) translateRange(
 			return "", fmt.Errorf("translate '%v': %w", part, err)
 		}
 
-		if cfg.escapeDoubleQuotes {
-			translated = doubleQuotesPrefixRE.ReplaceAllString(translated, `\"`)
-			translated = doubleQuotesRE.ReplaceAllString(translated, `$1\"`)
-		}
+		translated = strconv.Quote(translated)
+		translated = translated[1 : len(translated)-1]
 
 		if len(leftSpace) == 0 && len(rightSpace) == 0 {
 			parts[i] = translated

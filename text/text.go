@@ -104,6 +104,7 @@ func (err RangeError) Error() string {
 // Replace the text at range [r[0], r[1]) with repl.
 //
 // Example:
+//
 //	Replace("This is a sentence.", "was", Range{5, 7}) = "This was a sentence."
 func Replace(text, repl string, r Range) (string, error) {
 	if tlen := len(text); r.Len() > len(text) {
@@ -118,6 +119,7 @@ func Replace(text, repl string, r Range) (string, error) {
 // ReplaceMany replaces the contents of input, according to replacements.
 //
 // Example:
+//
 //	ReplaceMany(
 //		"This is a sentence.",
 //		Replacement{Range: Range{0, 4}, Text: "Hi,"},
