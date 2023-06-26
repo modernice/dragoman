@@ -262,6 +262,7 @@ func (t *Translator) translateRange(
 			return "", fmt.Errorf("translate '%v': %w", part, err)
 		}
 
+		translated = strings.ReplaceAll(translated, `\"`, `"`)
 		translated = strconv.Quote(translated)
 		translated = translated[1 : len(translated)-1]
 

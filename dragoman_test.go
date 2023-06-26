@@ -271,6 +271,32 @@ func TestTranslator_Translate(t *testing.T) {
 				)
 			}))
 		})
+
+		Convey("Given a JSON string with already escaped double quotes", func() {
+			input := `"<span class=\"font-bold\">foo</span>"`
+
+			Convey("And a text ranger", WithRanges(ctrl, []text.Range{{1, 37}}, func(ranger text.Ranger) {
+				Convey("Then the translated text should not escape the escape backslash", WithTranslations(
+					ctrl,
+					"EN", "EN",
+					map[string]string{
+						`<span class=\"font-bold\">foo</span>`: `<span class=\"font-bold\">foo</span>`,
+					},
+					func(svc dragoman.Service) {
+						trans := dragoman.New(svc)
+						res, err := trans.Translate(
+							context.Background(),
+							strings.NewReader(input),
+							"EN", "EN",
+							ranger,
+						)
+
+						So(err, ShouldBeNil)
+						So(string(res), ShouldEqual, `"<span class=\"font-bold\">foo</span>"`)
+					}),
+				)
+			}))
+		})
 	})
 }
 
