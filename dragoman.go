@@ -127,7 +127,11 @@ type TranslateOption func(*translateConfig)
 //	  // r: "Hallo, {firstName}!"
 func Preserve(expr *regexp.Regexp) TranslateOption {
 	return func(cfg *translateConfig) {
-		cfg.preserve = expr
+		if cfg.preserve == nil {
+			cfg.preserve = expr
+			return
+		}
+		cfg.preserve = regexp.MustCompile(fmt.Sprintf("(%s)|(%s)", cfg.preserve.String(), expr.String()))
 	}
 }
 
