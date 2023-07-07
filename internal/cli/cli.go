@@ -18,8 +18,8 @@ import (
 
 var options struct {
 	SourcePath string   `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
-	SourceLang string   `short:"s" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
-	TargetLang string   `short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
+	SourceLang string   `name:"from" short:"f" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
+	TargetLang string   `name:"to" short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
 	Preserve   []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
 
 	OpenAIKey         string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`

@@ -34,11 +34,11 @@ dragoman source.json
 This command will translate the content of `source.json` and print the
 translated document to stdout. The source language is automatically detected by
 default, but if you want to specify the source or target languages, you need to
-use the `--source-lang` or `--target-lang` option.
+use the `--from` or `--to` option.
 
 ### Full list of available options
 
-**`-s` or `--source-lang`**
+**`-f` or `--from`**
 
 The source language of the document. It can be specified in any format that a
 human would understand (like 'English', 'German', 'French', etc.). If not
@@ -47,10 +47,10 @@ provided, it defaults to 'auto', meaning the language is automatically detected.
 Example:
 
 ```bash
-dragoman source.json --source-lang English --target-lang French
+dragoman source.json --from English --to French
 ```
 
-**`-t` or `--target-lang`**
+**`-t` or `--to`**
 
 The target language to which the document will be translated. It can be
 specified in any format that a human would understand (like 'English', 'German',
@@ -59,7 +59,7 @@ specified in any format that a human would understand (like 'English', 'German',
 Example:
 
 ```bash
-dragoman source.json --target-lang French
+dragoman source.json --to French
 ```
 
 **`-o` or `--output`**
@@ -70,10 +70,15 @@ option is not provided, the translated content will be printed to stdout.
 Example:
 
 ```bash
-dragoman source.json --target-lang French --output target.json
+dragoman source.json --output target.json
 ```
 
 **`-p` or `--preserve`**
+
+<div style="background: rgba(130, 40, 40, 1); padding: 0.5rem 1rem; border-radius: 4px; color: #fff;">
+<p style="margin: 0;"><strong>Warning:</strong> This option only works reliably
+with the <strong>gpt-4</strong> model.</p>
+</div>
 
 A comma-separated list of words or terms that should not be translated.
 The known words will be recognized not only as stand-alone words but also as
@@ -83,7 +88,7 @@ word is embedded within HTML tags or combined with other words.
 Example:
 
 ```bash
-dragoman source.json --target-lang French --preserve "Dragoman,OpenAI"
+dragoman source.json French --preserve "Dragoman,OpenAI"
 ```
 
 In this example, a term like `<span class="font-bold">Drago</span>man` will not
@@ -97,7 +102,7 @@ process and result of the translation.
 Example:
 
 ```bash
-dragoman source.json --target-lang French --output target.json --verbose
+dragoman source.json --to French --output target.json --verbose
 ```
 
 **`-h` or `--help`**
@@ -122,14 +127,14 @@ dragoman source.json
 Translate a JSON file from English to French and save the result to a file:
 
 ```bash
-dragoman source.json --source-lang English --target-lang French --output target.json
+dragoman source.json --from English --to French --output target.json
 ```
 
 Translate a JSON file from a detected language to French, with certain known
 words not translated:
 
 ```bash
-dragoman source.json --target-lang French --known "Dragoman,OpenAI"
+dragoman source.json --to French --known "Dragoman,OpenAI"
 ```
 
 ## Go Library
