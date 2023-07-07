@@ -162,7 +162,7 @@ func main() {
 	service := openai.New()
 	translator := dragoman.New(service)
 	
-	translated, err := translator.Translate(string(content))
+	translated, err := translator.Translate(context.TODO(), string(content))
 	if err != nil {
 			fmt.Println("Error in translation:", err)
 	}
@@ -194,6 +194,7 @@ func main() {
 	translator := dragoman.New(service)
 	
 	translated, err := translator.Translate(
+		context.TODO(),
 		string(content),
 		dragoman.Known([]string{"Dragoman", "OpenAI"}),
 	)
@@ -228,6 +229,7 @@ func main() {
 	translator := dragoman.New(service)
 	
 	translated, err := translator.Translate(
+		context.TODO(),
 		string(content),
 		dragoman.Source("English"),
 		dragoman.Target("French"),
