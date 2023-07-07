@@ -76,9 +76,9 @@ dragoman source.json --target-lang French --output target.json
 **`-k` or `--known`**
 
 A comma-separated list of words or terms that should not be translated.
-By default, the known words will be recognized not only as stand-alone words but
-also as part of larger expressions. This could be useful, for example, when the
-known word is embedded within HTML tags or combined with other words. 
+The known words will be recognized not only as stand-alone words but also as
+part of larger expressions. This could be useful, for example, when the known
+word is embedded within HTML tags or combined with other words. 
 
 Example:
 
