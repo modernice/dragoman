@@ -81,14 +81,14 @@ with the <strong>gpt-4</strong> model.</p>
 </div>
 
 A comma-separated list of words or terms that should not be translated.
-The known words will be recognized not only as stand-alone words but also as
+The preserved words will be recognized not only as stand-alone words but also as
 part of larger expressions. This could be useful, for example, when the known
 word is embedded within HTML tags or combined with other words. 
 
 Example:
 
 ```bash
-dragoman source.json French --preserve "Dragoman,OpenAI"
+dragoman source.json --preserve "Dragoman,OpenAI"
 ```
 
 In this example, a term like `<span class="font-bold">Drago</span>man` will not
@@ -102,7 +102,7 @@ process and result of the translation.
 Example:
 
 ```bash
-dragoman source.json --to French --output target.json --verbose
+dragoman source.json --verbose
 ```
 
 **`-h` or `--help`**
@@ -176,9 +176,9 @@ func main() {
 }
 ```
 
-### Example 2: Translation with Known Words
+### Example 2: Translation with Preserved Words
 
-In this example, we translate a JSON file, specifying some known words that
+In this example, we translate a JSON file, specifying some preserved words that
 should not be translated.
 
 ```go
@@ -201,7 +201,7 @@ func main() {
 	translated, err := translator.Translate(
 		context.TODO(),
 		string(content),
-		dragoman.Known([]string{"Dragoman", "OpenAI"}),
+		dragoman.Preserve([]string{"Dragoman", "OpenAI"}),
 	)
 	if err != nil {
 			fmt.Println("Error in translation:", err)
