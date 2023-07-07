@@ -73,7 +73,7 @@ Example:
 dragoman source.json --target-lang French --output target.json
 ```
 
-**`-k` or `--known`**
+**`-p` or `--preserve`**
 
 A comma-separated list of words or terms that should not be translated.
 The known words will be recognized not only as stand-alone words but also as
@@ -83,7 +83,7 @@ word is embedded within HTML tags or combined with other words.
 Example:
 
 ```bash
-dragoman source.json --target-lang French --known "Dragoman,OpenAI"
+dragoman source.json --target-lang French --preserve "Dragoman,OpenAI"
 ```
 
 In this example, a term like `<span class="font-bold">Drago</span>man` will not
