@@ -1,3 +1,5 @@
+> Dragoman is being rewritten as an AI-driven tool. The new version will be available soon under the main branch.
+
 # Dragoman - Translate structured documents
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/bounoable/dragoman)](https://pkg.go.dev/github.com/bounoable/dragoman) ![Test](https://github.com/bounoable/dragoman/workflows/Test/badge.svg)
@@ -33,13 +35,13 @@ File gets translated, but property names and placeholder variables are preserved
 ### CLI
 
 ```sh
-go install github.com/bounoable/dragoman/cmd/translate@latest
+go install github.com/bounoable/dragoman/cmd/translate@freeze
 ```
 
 ### API
 
 ```sh
-go get github.com/bounoable/dragoman
+go get github.com/bounoable/dragoman@freeze
 ```
 
 ## CLI
