@@ -3,11 +3,11 @@ package openai
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
-	"github.com/tiktoken-go/tokenizer"
 )
 
 const (
@@ -17,11 +17,11 @@ const (
 
 	// DefaultTemperature is the default value for the temperature parameter in the
 	// AI model. It affects the randomness of the model's output.
-	DefaultTemperature = 0.5
+	DefaultTemperature = 0.3
 
 	// DefaultTopP is the default value for the "Top P" parameter used in OpenAI's
 	// language models.
-	DefaultTopP = 0.1
+	DefaultTopP = 0.3
 
 	// DefaultTimeout specifies the default duration to wait before timing out
 	// requests to the OpenAI API. This value can be changed by using the Timeout
@@ -47,6 +47,7 @@ type Client struct {
 	temperature float32
 	topP        float32
 	timeout     time.Duration
+	verbose     bool
 	client      *openai.Client
 }
 
@@ -100,6 +101,14 @@ func Timeout(timeout time.Duration) Option {
 	}
 }
 
+// Verbose sets the verbosity level of the Client instance. If set to true,
+// debug logs will be printed during API requests.
+func Verbose(verbose bool) Option {
+	return func(m *Client) {
+		m.verbose = verbose
+	}
+}
+
 // New creates a new Client instance with the specified API token and optional
 // configuration options. The Client allows for the generation of text
 // completions using various models, with adjustable parameters for token count,
@@ -129,48 +138,60 @@ func New(apiToken string, opts ...Option) *Client {
 	return &m
 }
 
-// Chat generates text completion based on the given prompt using the configured
-// OpenAI language model. The generated text completion is returned as a string.
+// Chat is a method of the Client type that generates a text completion based on
+// the provided prompt. The generated text completion is returned as a string.
 func (m *Client) Chat(ctx context.Context, prompt string) (string, error) {
-	tok, err := tokenizer.ForModel(tokenizer.Model(m.model))
+	resp, err := m.createCompletion(ctx, prompt)
 	if err != nil {
-		return "", fmt.Errorf("get tokenizer for %q: %w", m.model, err)
+		return "", err
 	}
 
-	promptTokens, _, err := tok.Encode(prompt)
-	if err != nil {
-		return "", fmt.Errorf("encode prompt: %w", err)
-	}
-	maxTokens := m.maxTokens - len(promptTokens)
-
-	return m.createCompletion(ctx, prompt, maxTokens)
+	return strings.TrimSpace(resp), nil
 }
 
-func (m *Client) createCompletion(ctx context.Context, prompt string, maxTokens int) (string, error) {
+func (m *Client) createCompletion(ctx context.Context, prompt string) (string, error) {
 	if m.timeout > 0 {
+		m.debug("setting timeout to %s", m.timeout)
+
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, m.timeout)
 		defer cancel()
 	}
 
 	if isChatModel(m.model) {
+		m.debug("creating chat completion with prompt:\n\n%s", prompt)
+
+		msgs := []openai.ChatCompletionMessage{{
+			Role:    openai.ChatMessageRoleUser,
+			Content: prompt,
+		}}
+
+		promptTokens, err := ChatTokens(m.model, msgs)
+		if err != nil {
+			return "", err
+		}
+		maxTokens := m.maxTokens - promptTokens
+
 		resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 			Model:       m.model,
 			MaxTokens:   maxTokens,
 			Temperature: m.temperature,
 			TopP:        m.topP,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: "",
-				},
-			},
+			Messages:    msgs,
 		})
 		if err != nil {
 			return "", err
 		}
 		return resp.Choices[0].Message.Content, nil
 	}
+
+	m.debug("creating completion with prompt:\n\n%s", prompt)
+
+	promptTokens, err := PromptTokens(m.model, prompt)
+	if err != nil {
+		return "", fmt.Errorf("compute prompt tokens: %w", err)
+	}
+	maxTokens := m.maxTokens - promptTokens
 
 	resp, err := m.client.CreateCompletion(ctx, openai.CompletionRequest{
 		Model:       m.model,
@@ -183,6 +204,12 @@ func (m *Client) createCompletion(ctx context.Context, prompt string, maxTokens 
 		return "", err
 	}
 	return resp.Choices[0].Text, nil
+}
+
+func (m *Client) debug(format string, args ...interface{}) {
+	if m.verbose {
+		log.Printf("[OpenAI] %s", fmt.Sprintf(format, args...))
+	}
 }
 
 func isChatModel(model string) bool {
