@@ -17,10 +17,15 @@ import (
 )
 
 var options struct {
-	SourcePath string `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
+	SourcePath string   `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
+	SourceLang string   `short:"s" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
+	TargetLang string   `short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
+	Preserve   []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
 
-	OpenAIKey   string `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
-	OpenAIModel string `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
+	OpenAIKey         string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
+	OpenAIModel       string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
+	OpenAITemperature float32 `name:"temperature" help:"OpenAI temperature" env:"OPENAI_TEMPERATURE" default:"0.3"`
+	OpenAITopP        float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
 
 	Verbose bool `short:"v" help:"Verbose output"`
 }
@@ -58,7 +63,13 @@ func (app *App) Run() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	model := openai.New(options.OpenAIKey, openai.Verbose(options.Verbose))
+	model := openai.New(
+		options.OpenAIKey,
+		openai.Model(options.OpenAIModel),
+		openai.Temperature(options.OpenAITemperature),
+		openai.TopP(options.OpenAITopP),
+		openai.Verbose(options.Verbose),
+	)
 	translator := dragoman.New(model)
 
 	var (
@@ -77,7 +88,17 @@ func (app *App) Run() {
 		app.kong.FatalIfErrorf(err, "failed to read source file %q", options.SourcePath)
 	}
 
-	result, err := translator.Translate(ctx, string(source))
+	if options.SourceLang == "auto" {
+		options.SourceLang = ""
+	}
+
+	result, err := translator.Translate(
+		ctx,
+		string(source),
+		dragoman.Source(options.SourceLang),
+		dragoman.Target(options.TargetLang),
+		dragoman.Preserve(options.Preserve...),
+	)
 	app.kong.FatalIfErrorf(err)
 
 	fmt.Fprintf(os.Stdout, "%s\n", result)

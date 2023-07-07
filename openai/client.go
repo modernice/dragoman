@@ -135,6 +135,11 @@ func New(apiToken string, opts ...Option) *Client {
 		m.maxTokens = modelTokens["default"]
 	}
 
+	m.debug("Model: %s", m.model)
+	m.debug("Temperature: %f", m.temperature)
+	m.debug("TopP: %f", m.topP)
+	m.debug("Max tokens: %d", m.maxTokens)
+
 	return &m
 }
 
@@ -151,7 +156,7 @@ func (m *Client) Chat(ctx context.Context, prompt string) (string, error) {
 
 func (m *Client) createCompletion(ctx context.Context, prompt string) (string, error) {
 	if m.timeout > 0 {
-		m.debug("setting timeout to %s", m.timeout)
+		m.debug("Setting timeout to %s", m.timeout)
 
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, m.timeout)
@@ -159,7 +164,7 @@ func (m *Client) createCompletion(ctx context.Context, prompt string) (string, e
 	}
 
 	if isChatModel(m.model) {
-		m.debug("creating chat completion with prompt:\n\n%s", prompt)
+		m.debug("Creating chat completion with prompt:\n\n%s", prompt)
 
 		msgs := []openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleUser,
@@ -170,7 +175,9 @@ func (m *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		if err != nil {
 			return "", err
 		}
-		maxTokens := m.maxTokens - promptTokens
+
+		// -1 because "This model's maximum context length is 8192 tokens. However, you requested 8192 tokens" ???
+		maxTokens := m.maxTokens - promptTokens - 1
 
 		resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 			Model:       m.model,
@@ -185,13 +192,15 @@ func (m *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		return resp.Choices[0].Message.Content, nil
 	}
 
-	m.debug("creating completion with prompt:\n\n%s", prompt)
+	m.debug("Creating completion with prompt:\n\n%s", prompt)
 
 	promptTokens, err := PromptTokens(m.model, prompt)
 	if err != nil {
 		return "", fmt.Errorf("compute prompt tokens: %w", err)
 	}
-	maxTokens := m.maxTokens - promptTokens
+
+	// -1 because "This model's maximum context length is 8192 tokens. However, you requested 8192 tokens" ???
+	maxTokens := m.maxTokens - promptTokens - 1
 
 	resp, err := m.client.CreateCompletion(ctx, openai.CompletionRequest{
 		Model:       m.model,
