@@ -28,7 +28,8 @@ var options struct {
 	OpenAITemperature float32 `name:"temperature" help:"OpenAI temperature" env:"OPENAI_TEMPERATURE" default:"0.3"`
 	OpenAITopP        float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
 
-	Verbose bool `short:"v" help:"Verbose output"`
+	Timeout time.Duration `short:"T" help:"Timeout for API requests" env:"DRAGOMAN_TIMEOUT" default:"1m"`
+	Verbose bool          `short:"v" help:"Verbose output"`
 }
 
 // App represents a command-line application for translating structured text
@@ -69,6 +70,7 @@ func (app *App) Run() {
 		openai.Model(options.OpenAIModel),
 		openai.Temperature(options.OpenAITemperature),
 		openai.TopP(options.OpenAITopP),
+		openai.Timeout(options.Timeout),
 		openai.Verbose(options.Verbose),
 	)
 	translator := dragoman.New(model)
