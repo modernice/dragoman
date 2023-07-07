@@ -26,7 +26,7 @@ const (
 	// DefaultTimeout specifies the default duration to wait before timing out
 	// requests to the OpenAI API. This value can be changed by using the Timeout
 	// option when creating a new client.
-	DefaultTimeout = 30 * time.Second
+	DefaultTimeout = time.Minute
 )
 
 var modelTokens = map[string]int{
