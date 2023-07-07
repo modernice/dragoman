@@ -21,6 +21,7 @@ var options struct {
 	SourceLang string   `name:"from" short:"f" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
 	TargetLang string   `name:"to" short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
 	Preserve   []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
+	Out        string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
 
 	OpenAIKey         string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
 	OpenAIModel       string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
@@ -101,7 +102,27 @@ func (app *App) Run() {
 	)
 	app.kong.FatalIfErrorf(err)
 
-	fmt.Fprintf(os.Stdout, "%s\n", result)
+	if options.Out == "" {
+		fmt.Fprintf(os.Stdout, "%s\n", result)
+		return
+	}
+
+	f, err := os.Create(options.Out)
+	if err != nil {
+		app.kong.FatalIfErrorf(err, "failed to create output file %q", options.Out)
+		return
+	}
+	defer f.Close()
+
+	if _, err = fmt.Fprint(f, result); err != nil {
+		app.kong.FatalIfErrorf(err, "failed to write to output file %q", options.Out)
+		return
+	}
+
+	if err = f.Close(); err != nil {
+		app.kong.FatalIfErrorf(err, "failed to close output file %q", options.Out)
+		return
+	}
 }
 
 var errEmptyStdin = errors.New("stdin is empty")
