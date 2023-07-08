@@ -2,13 +2,22 @@
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/modernice/dragoman)](https://pkg.go.dev/github.com/modernice/dragoman) ![Test](https://github.com/modernice/dragoman/workflows/Test/badge.svg)
 
-Dragoman is a tool for translating structured documents like JSON, XML, YAML.
-The tool's key feature is its ability to maintain the document's structure during
-translation - keeping elements such as JSON keys and placeholders intact.
+Dragoman is an AI-powered tool for translating structured documents like JSON,
+XML, YAML. The tool's key feature is its ability to maintain the document's 
+structure during translation - keeping elements such as JSON keys and placeholders intact.
 
 Dragoman is available as both a CLI tool and a Go library. This means you can
 use it directly from your terminal for one-off tasks, or integrate it into your
 Go applications for more complex use cases.
+
+<p style="font-size: 0.9rem; font-weight: 500; background: rgba(0,0,0,0.5); padding: 0.75rem 1rem; border-radius: 8px;">
+If you're looking for a version of Dragoman that leverages conventional
+translation services like Google Translate or DeepL, check out the
+<a href="https://github.com/modernice/dragoman/tree/freeze">freeze</a> branch of
+this repository. The previous implementation manually extracted texts from the
+input files, translated them using DeepL or Google Translate, and reinserted the
+translated pieces back into the original documents. 
+</p>
 
 ## Installation
 
