@@ -8,6 +8,11 @@ if [ -z "$VERSION" ]; then
 	exit 1
 fi
 
+if git rev-parse "$VERSION" >/dev/null 2>&1; then
+	echo "Tag '$VERSION' already exists"
+	exit 1
+fi
+
 echo "$VERSION" > "$ROOT/cmd/dragoman/version.txt"
 
 git add "$ROOT/cmd/dragoman/version.txt"
