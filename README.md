@@ -13,10 +13,10 @@ Go applications for more complex use cases.
 <sub>
 If you're looking for a version of Dragoman that leverages conventional
 translation services like Google Translate or DeepL, check out the
-[freeze](./tree/freeze) branch of this repository. The previous implementation
-manually extracted texts from the input files, translated them using DeepL or
-Google Translate, and reinserted the translated pieces back into the original
-documents.
+<a href="https://github.com/modernice/dragoman/tree/freeze">freeze</a> branch
+of this repository. The previous implementation manually extracted texts from
+the input files, translated them using DeepL or Google Translate, and reinserted
+the translated pieces back into the original documents.
 </sub>
 
 ## Installation
