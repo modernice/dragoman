@@ -1,9 +1,10 @@
 # Dragoman - Translator for Structured Documents
 
-Dragoman is a command line tool designed for translating structured documents
-including but not limited to formats like JSON, XML, YAML. The tool's key
-feature is its ability to maintain the document's structure during translation -
-keeping vital elements such as JSON keys and placeholders intact.
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/modernice/dragoman)](https://pkg.go.dev/github.com/modernice/dragoman) ![Test](https://github.com/modernice/dragoman/workflows/Test/badge.svg)
+
+Dragoman is a tool for translating structured documents like JSON, XML, YAML.
+The tool's key feature is its ability to maintain the document's structure during
+translation - keeping elements such as JSON keys and placeholders intact.
 
 Dragoman is available as both a CLI tool and a Go library. This means you can
 use it directly from your terminal for one-off tasks, or integrate it into your
@@ -75,11 +76,6 @@ dragoman source.json --output target.json
 
 **`-p` or `--preserve`**
 
-<div style="background: rgba(130, 40, 40, 1); padding: 0.5rem 1rem; border-radius: 4px; color: #fff;">
-<p style="margin: 0;"><strong>Warning:</strong> This option only works reliably
-with the <strong>gpt-4</strong> model.</p>
-</div>
-
 A comma-separated list of words or terms that should not be translated.
 The preserved words will be recognized not only as stand-alone words but also as
 part of larger expressions. This could be useful, for example, when the known
@@ -88,7 +84,7 @@ word is embedded within HTML tags or combined with other words.
 Example:
 
 ```bash
-dragoman source.json --preserve "Dragoman,OpenAI"
+dragoman source.json --preserve Dragoman
 ```
 
 In this example, a term like `<span class="font-bold">Drago</span>man` will not
@@ -115,37 +111,13 @@ Example:
 dragoman --help
 ```
 
-## Examples
-
-Translate a JSON file from a detected language to English and print the result
-to stdout:
-
-```bash
-dragoman source.json
-```
-
-Translate a JSON file from English to French and save the result to a file:
-
-```bash
-dragoman source.json --from English --to French --output target.json
-```
-
-Translate a JSON file from a detected language to French, with certain known
-words not translated:
-
-```bash
-dragoman source.json --to French --known "Dragoman,OpenAI"
-```
-
-## Go Library
+## Use as Library
 
 Besides the CLI tool, Dragoman can also be used as a Go library in your own
 applications. This allows you to build the Dragoman translation capabilities
 directly into your own Go programs.
 
-Here are some examples of how you can use the Dragoman library:
-
-### Example 1: Basic Translation
+### Example: Basic Translation
 
 In this example, we load a JSON file and translate its content using the default
 source and target languages (automatic detection and English, respectively).
@@ -176,7 +148,7 @@ func main() {
 }
 ```
 
-### Example 2: Translation with Preserved Words
+### Example: Translation with Preserved Words
 
 In this example, we translate a JSON file, specifying some preserved words that
 should not be translated.
@@ -211,7 +183,7 @@ func main() {
 }
 ```
 
-### Example 3: Translation with Specific Source and Target Languages
+### Example: Translation with Specific Source and Target Languages
 
 In this example, we translate a JSON file from English to French, specifying the
 source and target languages.
