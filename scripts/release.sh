@@ -15,7 +15,7 @@ fi
 
 echo "$VERSION" > "$ROOT/version.txt"
 
-git add "$ROOT/cmd/dragoman/version.txt"
+git add "$ROOT/version.txt"
 git commit -m "$VERSION"
 git tag "$VERSION"
 git push origin main
