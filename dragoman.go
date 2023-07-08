@@ -125,7 +125,7 @@ func (t *Translator) Translate(ctx context.Context, document string, opts ...Tra
 
 		%s
 
-		Output only the translated document and nothing else.
+		Output only the translated document, without dividers, and nothing else.
 	`,
 		from,
 		params.target,
