@@ -30,6 +30,7 @@ var options struct {
 
 	Timeout time.Duration `short:"T" help:"Timeout for API requests" env:"DRAGOMAN_TIMEOUT" default:"1m"`
 	Verbose bool          `short:"v" help:"Verbose output"`
+	Stream  bool          `short:"s" help:"Stream output to stdout"`
 }
 
 // App represents a command-line application for translating structured text
@@ -65,14 +66,19 @@ func (app *App) Run() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	model := openai.New(
-		options.OpenAIKey,
+	opts := []openai.Option{
 		openai.Model(options.OpenAIModel),
 		openai.Temperature(options.OpenAITemperature),
 		openai.TopP(options.OpenAITopP),
 		openai.Timeout(options.Timeout),
 		openai.Verbose(options.Verbose),
-	)
+	}
+
+	if options.Stream {
+		opts = append(opts, openai.Stream(os.Stdout))
+	}
+
+	model := openai.New(options.OpenAIKey, opts...)
 	translator := dragoman.New(model)
 
 	var (
@@ -105,7 +111,7 @@ func (app *App) Run() {
 	app.kong.FatalIfErrorf(err)
 
 	if options.Out == "" {
-		fmt.Fprintf(os.Stdout, "%s\n", result)
+		fmt.Fprintf(os.Stdout, "\n%s\n", result)
 		return
 	}
 

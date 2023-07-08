@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"time"
@@ -48,6 +49,7 @@ type Client struct {
 	topP        float32
 	timeout     time.Duration
 	verbose     bool
+	stream      io.Writer
 	client      *openai.Client
 }
 
@@ -109,6 +111,15 @@ func Verbose(verbose bool) Option {
 	}
 }
 
+// Stream is an option function that sets the writer to which the generated text
+// completions will be streamed. This allows for real-time processing and
+// display of the generated text.
+func Stream(stream io.Writer) Option {
+	return func(m *Client) {
+		m.stream = stream
+	}
+}
+
 // New creates a new Client instance with the specified API token and optional
 // configuration options. The Client allows for the generation of text
 // completions using various models, with adjustable parameters for token count,
@@ -116,37 +127,37 @@ func Verbose(verbose bool) Option {
 // not explicitly set. The Client also supports setting a timeout duration for
 // API requests.
 func New(apiToken string, opts ...Option) *Client {
-	m := Client{
+	c := Client{
 		temperature: DefaultTemperature,
 		topP:        DefaultTopP,
 		timeout:     DefaultTimeout,
 		client:      openai.NewClient(apiToken),
 	}
 	for _, opt := range opts {
-		opt(&m)
+		opt(&c)
 	}
 
-	if m.model == "" {
-		m.model = DefaultModel
+	if c.model == "" {
+		c.model = DefaultModel
 	}
 
 	var ok bool
-	if m.maxTokens, ok = modelTokens[m.model]; !ok {
-		m.maxTokens = modelTokens["default"]
+	if c.maxTokens, ok = modelTokens[c.model]; !ok {
+		c.maxTokens = modelTokens["default"]
 	}
 
-	m.debug("Model: %s", m.model)
-	m.debug("Temperature: %f", m.temperature)
-	m.debug("TopP: %f", m.topP)
-	m.debug("Max tokens: %d", m.maxTokens)
+	c.debug("Model: %s", c.model)
+	c.debug("Temperature: %f", c.temperature)
+	c.debug("TopP: %f", c.topP)
+	c.debug("Max tokens: %d", c.maxTokens)
 
-	return &m
+	return &c
 }
 
 // Chat is a method of the Client type that generates a text completion based on
 // the provided prompt. The generated text completion is returned as a string.
-func (m *Client) Chat(ctx context.Context, prompt string) (string, error) {
-	resp, err := m.createCompletion(ctx, prompt)
+func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
+	resp, err := c.createCompletion(ctx, prompt)
 	if err != nil {
 		return "", err
 	}
@@ -154,65 +165,88 @@ func (m *Client) Chat(ctx context.Context, prompt string) (string, error) {
 	return strings.TrimSpace(resp), nil
 }
 
-func (m *Client) createCompletion(ctx context.Context, prompt string) (string, error) {
-	if m.timeout > 0 {
-		m.debug("Setting timeout to %s", m.timeout)
+func (c *Client) createCompletion(ctx context.Context, prompt string) (string, error) {
+	if c.timeout > 0 {
+		c.debug("Setting timeout to %s", c.timeout)
 
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, m.timeout)
+		ctx, cancel = context.WithTimeout(ctx, c.timeout)
 		defer cancel()
 	}
 
-	if isChatModel(m.model) {
-		m.debug("Creating chat completion with prompt:\n\n%s", prompt)
+	if isChatModel(c.model) {
+		c.debug("Creating chat completion with prompt:\n\n%s", prompt)
 
 		msgs := []openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleUser,
 			Content: prompt,
 		}}
 
-		promptTokens, err := ChatTokens(m.model, msgs)
+		promptTokens, err := ChatTokens(c.model, msgs)
 		if err != nil {
 			return "", err
 		}
 
 		// -1 because "This model's maximum context length is 8192 tokens. However, you requested 8192 tokens" ???
-		maxTokens := m.maxTokens - promptTokens - 1
+		maxTokens := c.maxTokens - promptTokens - 1
 
-		resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-			Model:       m.model,
+		stream, err := c.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
+			Model:       c.model,
 			MaxTokens:   maxTokens,
-			Temperature: m.temperature,
-			TopP:        m.topP,
+			Temperature: c.temperature,
+			TopP:        c.topP,
 			Messages:    msgs,
 		})
 		if err != nil {
 			return "", err
 		}
-		return resp.Choices[0].Message.Content, nil
+		return streamReader(c, stream).read(ctx, func(stream *openai.ChatCompletionStream) (chunk, error) {
+			resp, err := stream.Recv()
+			if err != nil {
+				return chunk{}, err
+			}
+			return chunk{
+				text:         resp.Choices[0].Delta.Content,
+				finishReason: string(resp.Choices[0].FinishReason),
+			}, nil
+		})
 	}
 
-	m.debug("Creating completion with prompt:\n\n%s", prompt)
+	c.debug("Creating completion with prompt:\n\n%s", prompt)
 
-	promptTokens, err := PromptTokens(m.model, prompt)
+	promptTokens, err := PromptTokens(c.model, prompt)
 	if err != nil {
 		return "", fmt.Errorf("compute prompt tokens: %w", err)
 	}
 
 	// -1 because "This model's maximum context length is 8192 tokens. However, you requested 8192 tokens" ???
-	maxTokens := m.maxTokens - promptTokens - 1
+	maxTokens := c.maxTokens - promptTokens - 1
 
-	resp, err := m.client.CreateCompletion(ctx, openai.CompletionRequest{
-		Model:       m.model,
+	stream, err := c.client.CreateCompletionStream(ctx, openai.CompletionRequest{
+		Model:       c.model,
 		MaxTokens:   maxTokens,
-		Temperature: m.temperature,
-		TopP:        m.topP,
+		Temperature: c.temperature,
+		TopP:        c.topP,
 		Prompt:      prompt,
 	})
 	if err != nil {
 		return "", err
 	}
-	return resp.Choices[0].Text, nil
+	return streamReader(c, stream).read(ctx, func(stream *openai.CompletionStream) (chunk, error) {
+		resp, err := stream.Recv()
+		if err != nil {
+			return chunk{}, err
+		}
+		return chunk{
+			text:         resp.Choices[0].Text,
+			finishReason: resp.Choices[0].FinishReason,
+		}, nil
+	})
+}
+
+type chunk struct {
+	text         string
+	finishReason string
 }
 
 func (m *Client) debug(format string, args ...interface{}) {
@@ -223,4 +257,79 @@ func (m *Client) debug(format string, args ...interface{}) {
 
 func isChatModel(model string) bool {
 	return strings.HasPrefix(model, "gpt-")
+}
+
+type chunkReader[Stream any] struct {
+	client *Client
+	stream Stream
+}
+
+func streamReader[Stream any](client *Client, stream Stream) chunkReader[Stream] {
+	return chunkReader[Stream]{
+		client: client,
+		stream: stream,
+	}
+}
+
+func (r chunkReader[Stream]) read(ctx context.Context, getChunk func(Stream) (chunk, error)) (string, error) {
+	var text strings.Builder
+
+	if r.client.stream != nil {
+		fmt.Fprint(r.client.stream, "\n")
+	}
+
+	for {
+		timeout := time.NewTimer(5 * time.Second)
+
+		chunkC := make(chan chunk)
+		errC := make(chan error)
+
+		fail := func(err error) {
+			select {
+			case <-ctx.Done():
+				return
+			case errC <- err:
+				return
+			}
+		}
+
+		go func() {
+			chunk, err := getChunk(r.stream)
+			if err != nil {
+				fail(err)
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case chunkC <- chunk:
+			}
+		}()
+
+		select {
+		case <-ctx.Done():
+			timeout.Stop()
+			return text.String(), ctx.Err()
+		case <-timeout.C:
+			return text.String(), fmt.Errorf("chunk timeout")
+		case err := <-errC:
+			timeout.Stop()
+			return text.String(), err
+		case chunk := <-chunkC:
+			timeout.Stop()
+			text.WriteString(chunk.text)
+
+			if chunk.text != "" && r.client.stream != nil {
+				fmt.Fprint(r.client.stream, chunk.text)
+			}
+
+			if chunk.finishReason == string(openai.FinishReasonStop) {
+				return text.String(), nil
+			}
+
+			if chunk.finishReason == string(openai.FinishReasonLength) {
+				return text.String(), fmt.Errorf("max tokens exceeded")
+			}
+		}
+	}
 }
