@@ -127,22 +127,19 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/modernice/dragoman"
 	"github.com/modernice/dragoman/openai"
 )
 
 func main() {
-	content, _ := ioutil.ReadFile("source.json")
+	content, _ := io.ReadFile("source.json")
 	
 	service := openai.New()
 	translator := dragoman.New(service)
 	
-	translated, err := translator.Translate(context.TODO(), string(content))
-	if err != nil {
-			fmt.Println("Error in translation:", err)
-	}
+	translated, _ := translator.Translate(context.TODO(), string(content))
 
 	fmt.Println(translated)
 }
@@ -158,26 +155,23 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/modernice/dragoman"
 	"github.com/modernice/dragoman/openai"
 )
 
 func main() {
-	content, _ := ioutil.ReadFile("source.json")
+	content, _ := io.ReadFile("source.json")
 	
 	service := openai.New()
 	translator := dragoman.New(service)
 	
-	translated, err := translator.Translate(
+	translated, _ := translator.Translate(
 		context.TODO(),
 		string(content),
 		dragoman.Preserve([]string{"Dragoman", "OpenAI"}),
 	)
-	if err != nil {
-			fmt.Println("Error in translation:", err)
-	}
 
 	fmt.Println(translated)
 }
@@ -193,27 +187,24 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/modernice/dragoman"
 	"github.com/modernice/dragoman/openai"
 )
 
 func main() {
-	content, _ := ioutil.ReadFile("source.json")
+	content, _ := io.ReadFile("source.json")
 	
 	service := openai.New()
 	translator := dragoman.New(service)
 	
-	translated, err := translator.Translate(
+	translated, _ := translator.Translate(
 		context.TODO(),
 		string(content),
 		dragoman.Source("English"),
 		dragoman.Target("French"),
 	)
-	if err != nil {
-			fmt.Println("Error in translation:", err)
-	}
 
 	fmt.Println(translated)
 }
