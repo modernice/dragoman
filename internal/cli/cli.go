@@ -68,8 +68,6 @@ func New(version string) *App {
 // translated result to stdout. The application can be interrupted by an
 // interrupt signal (SIGINT) or a termination signal (SIGTERM).
 func (app *App) Run() {
-	fmt.Printf("dragoman %s\n", app.version)
-
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
