@@ -13,7 +13,7 @@ if git rev-parse "$VERSION" >/dev/null 2>&1; then
 	exit 1
 fi
 
-echo "$VERSION" > "$ROOT/cmd/dragoman/version.txt"
+echo "$VERSION" > "$ROOT/version.txt"
 
 git add "$ROOT/cmd/dragoman/version.txt"
 git commit -m "$VERSION"
