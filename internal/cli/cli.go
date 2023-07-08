@@ -40,19 +40,24 @@ var options struct {
 // translation and supports various configuration options, such as specifying
 // the OpenAI API key and model.
 type App struct {
-	kong *kong.Context
+	version string
+	kong    *kong.Context
 }
 
-// New returns a new instance of the App type, which represents a translator for
-// structured text. The App instance is configured with the provided options,
-// including an OpenAI API key and model. The Run method can be called on the
-// App instance to start the translation process.
-func New() *App {
-	var app App
+// New creates a new instance of the Dragoman application. It takes a version
+// string as input and returns a pointer to the created App object. The App
+// object represents a command-line application for translating structured text
+// using AI language models.
+func New(version string) *App {
+	app := App{version: version}
 	app.kong = kong.Parse(
 		&options,
 		kong.Name("dragoman"),
 		kong.Description("Dragoman is a translator for structured text, powered by AI language models."),
+		kong.Help(func(opts kong.HelpOptions, ctx *kong.Context) error {
+			ctx.Stdout.Write([]byte(fmt.Sprintf("dragoman %s\n\n", version)))
+			return kong.DefaultHelpPrinter(opts, ctx)
+		}),
 	)
 	return &app
 }
@@ -63,6 +68,8 @@ func New() *App {
 // translated result to stdout. The application can be interrupted by an
 // interrupt signal (SIGINT) or a termination signal (SIGTERM).
 func (app *App) Run() {
+	fmt.Printf("dragoman %s\n\n", app.version)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
