@@ -55,7 +55,7 @@ func New(version string) *App {
 		kong.Name("dragoman"),
 		kong.Description("Dragoman is a translator for structured text, powered by AI language models."),
 		kong.Help(func(opts kong.HelpOptions, ctx *kong.Context) error {
-			ctx.Stdout.Write([]byte(fmt.Sprintf("dragoman %s\n\n", version)))
+			ctx.Stdout.Write([]byte(fmt.Sprintf("dragoman %s\n", version)))
 			return kong.DefaultHelpPrinter(opts, ctx)
 		}),
 	)
@@ -68,7 +68,7 @@ func New(version string) *App {
 // translated result to stdout. The application can be interrupted by an
 // interrupt signal (SIGINT) or a termination signal (SIGTERM).
 func (app *App) Run() {
-	fmt.Printf("dragoman %s\n\n", app.version)
+	fmt.Printf("dragoman %s\n", app.version)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -118,7 +118,7 @@ func (app *App) Run() {
 	app.kong.FatalIfErrorf(err)
 
 	if options.Out == "" {
-		fmt.Fprintf(os.Stdout, "\n%s\n", result)
+		fmt.Fprintf(os.Stdout, "%s\n", result)
 		return
 	}
 
