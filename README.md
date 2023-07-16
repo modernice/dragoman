@@ -97,7 +97,7 @@ dragoman source.json --preserve Dragoman
 ```
 
 In this example, a term like `<span class="font-bold">Drago</span>man` will not
-be translated due to the flexibility of the --known option.
+be translated.
 
 **`-v` or `--verbose`**
 
