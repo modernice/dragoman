@@ -21,6 +21,7 @@ var options struct {
 	SourceLang string   `name:"from" short:"f" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
 	TargetLang string   `name:"to" short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
 	Preserve   []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
+	Rules      []string `name:"rule" short:"r" help:"Additional rules for the prompt" env:"DRAGOMAN_RULES"`
 	Out        string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
 
 	OpenAIKey         string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
@@ -33,21 +34,21 @@ var options struct {
 	Stream  bool          `short:"s" help:"Stream output to stdout"`
 }
 
-// App represents a command-line application for translating structured text
-// using AI language models. It reads the source text either from a file
-// specified by the user or from the standard input. The translated text is then
-// printed to the standard output. The application uses the OpenAI API for
-// translation and supports various configuration options, such as specifying
-// the OpenAI API key and model.
+// App coordinates the translation of structured text using AI language models.
+// It sets up a command-line interface with various options to specify source
+// and target languages, preserve certain terms, apply translation rules, and
+// handle input/output configurations. App encapsulates the logic for reading
+// source content, invoking translation services with the specified parameters,
+// and writing the translated result to either a file or standard output,
+// respecting user-defined timeouts and verbosity settings. It also gracefully
+// handles termination signals to ensure proper cleanup during unexpected exits.
 type App struct {
 	version string
 	kong    *kong.Context
 }
 
-// New creates a new instance of the Dragoman application. It takes a version
-// string as input and returns a pointer to the created App object. The App
-// object represents a command-line application for translating structured text
-// using AI language models.
+// New creates a new instance of App with the provided version and sets up its
+// command-line interface context. It returns a pointer to the created App.
 func New(version string) *App {
 	app := App{version: version}
 	app.kong = kong.Parse(
@@ -62,11 +63,10 @@ func New(version string) *App {
 	return &app
 }
 
-// Run runs the Dragoman application. It translates structured text using an AI
-// language model. It reads the source text either from a specified file or from
-// stdin, translates it using the OpenAI language model, and prints the
-// translated result to stdout. The application can be interrupted by an
-// interrupt signal (SIGINT) or a termination signal (SIGTERM).
+// Run initializes and starts the application, handling command-line parsing,
+// signal interrupts, file input/output operations, and invoking the translation
+// process using AI language models. It manages errors gracefully, provides
+// feedback to the user, and ensures proper resource cleanup.
 func (app *App) Run() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -112,6 +112,7 @@ func (app *App) Run() {
 		dragoman.Source(options.SourceLang),
 		dragoman.Target(options.TargetLang),
 		dragoman.Preserve(options.Preserve...),
+		dragoman.Rules(options.Rules...),
 	)
 	app.kong.FatalIfErrorf(err)
 

@@ -52,6 +52,7 @@ type parameters struct {
 	source   string
 	target   string
 	preserve []string
+	rules    []string
 }
 
 // New creates a new Translator with the provided Model.
@@ -87,6 +88,15 @@ func Preserve(terms ...string) TranslateOption {
 	}
 }
 
+// Rules appends custom translation rules to the set of existing rules that
+// govern the translation process. These rules are used within the Translate
+// method of the Translator type to influence how the document is translated.
+func Rules(rules ...string) TranslateOption {
+	return func(p *parameters) {
+		p.rules = append(p.rules, rules...)
+	}
+}
+
 // Translate method translates a given document from a specified source language
 // to a target language using the provided translation options. It preserves the
 // original document structure and formatting, excludes translation of code
@@ -108,10 +118,10 @@ func (t *Translator) Translate(ctx context.Context, document string, opts ...Tra
 		from = fmt.Sprintf("from %s ", params.source)
 	}
 
-	rules := []string{
+	rules := append([]string{
 		"Preserve the original document structure and formatting.",
-		"Do not translate any code blocks, placeholders, or HTML tags.",
-	}
+		"Preserve code blocks, placeholders, HTML tags and other structures.",
+	}, params.rules...)
 
 	if len(params.preserve) > 0 {
 		rules = append(rules, fmt.Sprintf("Do not translate the following terms: %s", strings.Join(params.preserve, ", ")))
@@ -125,7 +135,7 @@ func (t *Translator) Translate(ctx context.Context, document string, opts ...Tra
 
 		%s
 
-		Output only the translated document, without dividers, and nothing else.
+		Output only the translated document, no chat.
 	`,
 		from,
 		params.target,
