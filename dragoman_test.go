@@ -15,9 +15,9 @@ func TestTranslator_Translate(t *testing.T) {
 
 	wantPrompt := heredoc.Docf(`
 		Translate the following document to English:
-		--------------------------------------------
+		---
 		%s
-		--------------------------------------------
+		---
 
 		Preserve the original document structure and formatting.
 		Preserve code blocks, placeholders, HTML tags and other structures.
@@ -35,9 +35,9 @@ func TestSource(t *testing.T) {
 
 	wantPrompt := heredoc.Docf(`
 		Translate the following document from French to English:
-		--------------------------------------------
+		---
 		%s
-		--------------------------------------------
+		---
 
 		Preserve the original document structure and formatting.
 		Preserve code blocks, placeholders, HTML tags and other structures.
@@ -55,9 +55,9 @@ func TestTarget(t *testing.T) {
 
 	wantPrompt := heredoc.Docf(`
 		Translate the following document to French:
-		--------------------------------------------
+		---
 		%s
-		--------------------------------------------
+		---
 
 		Preserve the original document structure and formatting.
 		Preserve code blocks, placeholders, HTML tags and other structures.
@@ -75,9 +75,9 @@ func TestPreserve(t *testing.T) {
 
 	wantPrompt := heredoc.Docf(`
 		Translate the following document to English:
-		--------------------------------------------
+		---
 		%s
-		--------------------------------------------
+		---
 
 		Preserve the original document structure and formatting.
 		Preserve code blocks, placeholders, HTML tags and other structures.
@@ -96,9 +96,9 @@ func TestPreserve_multiple(t *testing.T) {
 
 	wantPrompt := heredoc.Docf(`
 		Translate the following document to English:
-		--------------------------------------------
+		---
 		%s
-		--------------------------------------------
+		---
 
 		Preserve the original document structure and formatting.
 		Preserve code blocks, placeholders, HTML tags and other structures.

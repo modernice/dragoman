@@ -3,6 +3,7 @@ package dragoman
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc/v2"
@@ -129,9 +130,9 @@ func (t *Translator) Translate(ctx context.Context, document string, opts ...Tra
 
 	prompt := heredoc.Docf(`
 		Translate the following document %sto %s:
-		--------------------------------------------
+		---
 		%s
-		--------------------------------------------
+		---
 
 		%s
 
@@ -143,5 +144,29 @@ func (t *Translator) Translate(ctx context.Context, document string, opts ...Tra
 		strings.Join(rules, "\n"),
 	)
 
-	return t.model.Chat(ctx, prompt)
+	response, err := t.model.Chat(ctx, prompt)
+	if err != nil {
+		return "", err
+	}
+
+	return trimDividers(response), nil
+}
+
+func trimDividers(text string) string {
+	lines := strings.Split(text, "\n")
+	out := slices.Clone(lines)
+
+	if len(out) < 1 {
+		return text
+	}
+
+	if out[0] == "---" {
+		out = out[1:]
+	}
+
+	if len(out) > 0 && out[len(out)-1] == "---" {
+		out = out[:len(out)-1]
+	}
+
+	return strings.TrimSpace(strings.Join(out, "\n"))
 }
