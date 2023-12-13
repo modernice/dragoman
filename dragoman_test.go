@@ -20,9 +20,9 @@ func TestTranslator_Translate(t *testing.T) {
 		--------------------------------------------
 
 		Preserve the original document structure and formatting.
-		Do not translate any code blocks, placeholders, or HTML tags.
+		Preserve code blocks, placeholders, HTML tags and other structures.
 
-		Output only the translated document, without dividers, and nothing else.
+		Output only the translated document, no chat.
 	`, source)
 
 	prompt(wantPrompt).expect(t, source)
@@ -40,9 +40,9 @@ func TestSource(t *testing.T) {
 		--------------------------------------------
 
 		Preserve the original document structure and formatting.
-		Do not translate any code blocks, placeholders, or HTML tags.
+		Preserve code blocks, placeholders, HTML tags and other structures.
 
-		Output only the translated document, without dividers, and nothing else.
+		Output only the translated document, no chat.
 	`, source)
 
 	prompt(wantPrompt).expect(t, source, dragoman.Source("French"))
@@ -60,9 +60,9 @@ func TestTarget(t *testing.T) {
 		--------------------------------------------
 
 		Preserve the original document structure and formatting.
-		Do not translate any code blocks, placeholders, or HTML tags.
+		Preserve code blocks, placeholders, HTML tags and other structures.
 
-		Output only the translated document, without dividers, and nothing else.
+		Output only the translated document, no chat.
 	`, source)
 
 	prompt(wantPrompt).expect(t, source, dragoman.Target("French"))
@@ -80,10 +80,10 @@ func TestPreserve(t *testing.T) {
 		--------------------------------------------
 
 		Preserve the original document structure and formatting.
-		Do not translate any code blocks, placeholders, or HTML tags.
+		Preserve code blocks, placeholders, HTML tags and other structures.
 		Do not translate the following terms: HalloWeltBot
 
-		Output only the translated document, without dividers, and nothing else.
+		Output only the translated document, no chat.
 	`, source)
 
 	prompt(wantPrompt).expect(t, source, dragoman.Preserve("HalloWeltBot"))
@@ -101,10 +101,10 @@ func TestPreserve_multiple(t *testing.T) {
 		--------------------------------------------
 
 		Preserve the original document structure and formatting.
-		Do not translate any code blocks, placeholders, or HTML tags.
+		Preserve code blocks, placeholders, HTML tags and other structures.
 		Do not translate the following terms: HalloWeltBot, WeltFabrik
 
-		Output only the translated document, without dividers, and nothing else.
+		Output only the translated document, no chat.
 	`, source)
 
 	prompt(wantPrompt).expect(t, source, dragoman.Preserve("HalloWeltBot", "WeltFabrik"))
