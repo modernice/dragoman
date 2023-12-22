@@ -189,6 +189,15 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 			Content: prompt,
 		}}
 
+		if c.responseFormat == "json_object" {
+			msgs = append([]openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: "You are a translator for JSON files. You only translate text fields, preserving the JSON structure and keys.",
+				},
+			}, msgs...)
+		}
+
 		promptTokens, err := ChatTokens(c.model, msgs)
 		if err != nil {
 			return "", err
