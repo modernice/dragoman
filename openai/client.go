@@ -43,14 +43,15 @@ var modelTokens = map[string]int{
 // parameters for token count, temperature, and topP. A specified timeout can be
 // set for API requests.
 type Client struct {
-	model       string
-	maxTokens   int
-	temperature float32
-	topP        float32
-	timeout     time.Duration
-	verbose     bool
-	stream      io.Writer
-	client      *openai.Client
+	model          string
+	responseFormat openai.ChatCompletionResponseFormatType
+	maxTokens      int
+	temperature    float32
+	topP           float32
+	timeout        time.Duration
+	verbose        bool
+	stream         io.Writer
+	client         *openai.Client
 }
 
 // Option is a function type used to configure a Client. It allows for setting
@@ -65,6 +66,12 @@ type Option func(*Client)
 func Model(model string) Option {
 	return func(m *Client) {
 		m.model = model
+	}
+}
+
+func ResponseFormat[Format string | openai.ChatCompletionResponseFormatType](format Format) Option {
+	return func(m *Client) {
+		m.responseFormat = openai.ChatCompletionResponseFormatType(format)
 	}
 }
 
@@ -190,12 +197,18 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		// -1 because "This model's maximum context length is 8192 tokens. However, you requested 8192 tokens" ???
 		maxTokens := c.maxTokens - promptTokens - 1
 
+		var responseFormat *openai.ChatCompletionResponseFormat
+		if c.responseFormat != "" {
+			responseFormat = &openai.ChatCompletionResponseFormat{Type: c.responseFormat}
+		}
+
 		stream, err := c.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
-			Model:       c.model,
-			MaxTokens:   maxTokens,
-			Temperature: c.temperature,
-			TopP:        c.topP,
-			Messages:    msgs,
+			Model:          c.model,
+			MaxTokens:      maxTokens,
+			Temperature:    c.temperature,
+			TopP:           c.topP,
+			Messages:       msgs,
+			ResponseFormat: responseFormat,
 		})
 		if err != nil {
 			return "", err

@@ -24,10 +24,11 @@ var options struct {
 	Rules      []string `name:"rule" short:"r" help:"Additional rules for the prompt" env:"DRAGOMAN_RULES"`
 	Out        string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
 
-	OpenAIKey         string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
-	OpenAIModel       string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
-	OpenAITemperature float32 `name:"temperature" help:"OpenAI temperature" env:"OPENAI_TEMPERATURE" default:"0.3"`
-	OpenAITopP        float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
+	OpenAIKey            string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
+	OpenAIModel          string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
+	OpenAITemperature    float32 `name:"temperature" help:"OpenAI temperature" env:"OPENAI_TEMPERATURE" default:"0.3"`
+	OpenAITopP           float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
+	OpenAIResponseFormat string  `name:"format" help:"OpenAI response format ('text' or 'json_object')" env:"OPENAI_RESPONSE_FORMAT" default:"text"`
 
 	Timeout time.Duration `short:"T" help:"Timeout for API requests" env:"DRAGOMAN_TIMEOUT" default:"3m"`
 	Verbose bool          `short:"v" help:"Verbose output"`
@@ -73,6 +74,7 @@ func (app *App) Run() {
 
 	opts := []openai.Option{
 		openai.Model(options.OpenAIModel),
+		openai.ResponseFormat(options.OpenAIResponseFormat),
 		openai.Temperature(options.OpenAITemperature),
 		openai.TopP(options.OpenAITopP),
 		openai.Timeout(options.Timeout),
