@@ -2,10 +2,10 @@ package dragoman_test
 
 import (
 	"cmp"
+	"slices"
 	"testing"
 
 	tcmp "github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/modernice/dragoman"
 )
 
@@ -86,23 +86,22 @@ func equalPaths(a, b []dragoman.JSONPath) bool {
 		return false
 	}
 
-	for i := range a {
-		if !tcmp.Equal(a[i], b[i], cmpopts.SortSlices(func(a, b dragoman.JSONPath) bool {
-			if v := cmp.Compare(len(a), len(b)); v != 0 {
-				return v == -1
-			}
-
-			for i := range a {
-				if v := cmp.Compare(a[i], b[i]); v != 0 {
-					return v == -1
-				}
-			}
-
-			return false
-		})) {
-			return false
+	comparer := func(a, b dragoman.JSONPath) int {
+		if v := cmp.Compare(len(a), len(b)); v != 0 {
+			return v
 		}
+
+		for i := range a {
+			if v := cmp.Compare(a[i], b[i]); v != 0 {
+				return v
+			}
+		}
+
+		return 0
 	}
 
-	return true
+	slices.SortFunc(a, comparer)
+	slices.SortFunc(b, comparer)
+
+	return tcmp.Equal(a, b)
 }
