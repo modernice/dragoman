@@ -180,7 +180,7 @@ func (app *App) Run() {
 		}
 		dragoman.JSONMerge(originalOutMap, resultMap)
 
-		marshaled, err := json.Marshal(resultMap)
+		marshaled, err := json.Marshal(originalOutMap)
 		if err != nil {
 			app.kong.FatalIfErrorf(err, "failed to marshal result map")
 		}
