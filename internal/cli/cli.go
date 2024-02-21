@@ -3,9 +3,11 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"syscall"
@@ -23,6 +25,8 @@ var options struct {
 	Preserve   []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
 	Rules      []string `name:"rule" short:"r" help:"Additional rules for the prompt" env:"DRAGOMAN_RULES"`
 	Out        string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
+	Update     bool     `short:"u" help:"Only translate missing fields in output file (requires JSON files)" env:"DRAGOMAN_UPDATE"`
+	Dry        bool     `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
 
 	OpenAIKey            string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
 	OpenAIModel          string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
@@ -69,6 +73,14 @@ func New(version string) *App {
 // process using AI language models. It manages errors gracefully, provides
 // feedback to the user, and ensures proper resource cleanup.
 func (app *App) Run() {
+	if options.Update && options.Out == "" {
+		app.kong.Fatalf("you must provide the <out> file when using --update")
+	}
+
+	if options.Out == "" {
+		options.Dry = true
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
@@ -104,6 +116,44 @@ func (app *App) Run() {
 		app.kong.FatalIfErrorf(err, "failed to read source file %q", options.SourcePath)
 	}
 
+	var (
+		sourceMap      map[string]any
+		originalOutMap map[string]any
+	)
+	if options.Update {
+		err = json.Unmarshal(source, &sourceMap)
+		app.kong.FatalIfErrorf(err, "failed to unmarshal source as JSON")
+
+		outFile, err := os.ReadFile(options.Out)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			app.kong.FatalIfErrorf(err, "failed to read target file %q", options.Out)
+		} else if err == nil {
+			err = json.Unmarshal(outFile, &originalOutMap)
+			app.kong.FatalIfErrorf(err, "failed to unmarshal target file %q", options.Out)
+		} else {
+			originalOutMap = map[string]any{}
+		}
+
+		paths, err := dragoman.JSONDiff(sourceMap, originalOutMap)
+		app.kong.FatalIfErrorf(err, "failed to diff source and target")
+
+		if len(paths) == 0 {
+			if options.Verbose {
+				fmt.Fprintf(os.Stderr, "No fields missing in output file %q.\n", options.Out)
+			}
+			return
+		}
+
+		sourceMap, err := dragoman.JSONExtract(source, paths)
+		if err != nil {
+			app.kong.FatalIfErrorf(err, "failed to extract missing fields from source")
+		}
+
+		if source, err = json.Marshal(sourceMap); err != nil {
+			app.kong.FatalIfErrorf(err, "failed to marshal source map")
+		}
+	}
+
 	if options.SourceLang == "auto" {
 		options.SourceLang = ""
 	}
@@ -118,9 +168,23 @@ func (app *App) Run() {
 	)
 	app.kong.FatalIfErrorf(err)
 
-	if options.Out == "" {
+	if options.Dry {
 		fmt.Fprintf(os.Stdout, "%s\n", result)
 		return
+	}
+
+	if options.Update {
+		var resultMap map[string]any
+		if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
+			app.kong.FatalIfErrorf(err, "failed to unmarshal result as JSON")
+		}
+		dragoman.JSONMerge(originalOutMap, resultMap)
+
+		marshaled, err := json.Marshal(resultMap)
+		if err != nil {
+			app.kong.FatalIfErrorf(err, "failed to marshal result map")
+		}
+		result = string(marshaled)
 	}
 
 	f, err := os.Create(options.Out)

@@ -69,6 +69,13 @@ func Model(model string) Option {
 	}
 }
 
+// ResponseFormat configures the format of the response received from the OpenAI
+// API when generating text completions. It specifies how the response should be
+// structured, which can be either plain text or a structured format that
+// includes additional metadata. This option is passed to a Client instance
+// during its creation and influences how the Client processes and returns
+// generated content. The function accepts format types that can be either a
+// string or an openai.ChatCompletionResponseFormatType.
 func ResponseFormat[Format string | openai.ChatCompletionResponseFormatType](format Format) Option {
 	return func(m *Client) {
 		m.responseFormat = openai.ChatCompletionResponseFormatType(format)
