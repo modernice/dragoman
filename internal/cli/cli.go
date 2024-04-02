@@ -149,7 +149,7 @@ func (app *App) Run() {
 			app.kong.FatalIfErrorf(err, "failed to extract missing fields from source")
 		}
 
-		if source, err = json.Marshal(sourceMap); err != nil {
+		if source, err = jsonMarshal(sourceMap); err != nil {
 			app.kong.FatalIfErrorf(err, "failed to marshal source map")
 		}
 	}
@@ -180,7 +180,7 @@ func (app *App) Run() {
 		}
 		dragoman.JSONMerge(originalOutMap, resultMap)
 
-		marshaled, err := json.MarshalIndent(originalOutMap, "", "  ")
+		marshaled, err := jsonMarshal(originalOutMap)
 		if err != nil {
 			app.kong.FatalIfErrorf(err, "failed to marshal result map")
 		}
@@ -252,4 +252,13 @@ func readAll(r io.Reader) (out []byte, err error) {
 			return buf.Bytes(), err
 		}
 	}
+}
+
+func jsonMarshal(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	err := enc.Encode(v)
+	return buf.Bytes(), err
 }
