@@ -10,23 +10,26 @@ import (
 	"io/fs"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/modernice/dragoman"
+	"github.com/modernice/dragoman/internal/chunks"
 	"github.com/modernice/dragoman/openai"
 )
 
-var options struct {
-	SourcePath string   `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
-	SourceLang string   `name:"from" short:"f" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
-	TargetLang string   `name:"to" short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
-	Preserve   []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
-	Rules      []string `name:"rule" short:"r" help:"Additional rules for the prompt" env:"DRAGOMAN_RULES"`
-	Out        string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
-	Update     bool     `short:"u" help:"Only translate missing fields in output file (requires JSON files)" env:"DRAGOMAN_UPDATE"`
-	Dry        bool     `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
+type cliOptions struct {
+	SourcePath  string   `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
+	SourceLang  string   `name:"from" short:"f" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
+	TargetLang  string   `name:"to" short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
+	Preserve    []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
+	Rules       []string `name:"rule" short:"r" help:"Additional rules for the prompt" env:"DRAGOMAN_RULES"`
+	Out         string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
+	Update      bool     `short:"u" help:"Only translate missing fields in output file (requires JSON files)" env:"DRAGOMAN_UPDATE"`
+	Dry         bool     `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
+	SplitChunks []string `name:"split-chunks" help:"Chunk source file at lines that start with one of the provided prefixes" env:"DRAGOMAN_SPLIT_CHUNKS"`
 
 	OpenAIKey            string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
 	OpenAIModel          string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
@@ -38,6 +41,8 @@ var options struct {
 	Verbose bool          `short:"v" help:"Verbose output"`
 	Stream  bool          `short:"s" help:"Stream output to stdout"`
 }
+
+var options cliOptions
 
 // App coordinates the translation of structured text using AI language models.
 // It sets up a command-line interface with various options to specify source
@@ -158,15 +163,23 @@ func (app *App) Run() {
 		options.SourceLang = ""
 	}
 
-	result, err := translator.Translate(
-		ctx,
-		string(source),
-		dragoman.Source(options.SourceLang),
-		dragoman.Target(options.TargetLang),
-		dragoman.Preserve(options.Preserve...),
-		dragoman.Rules(options.Rules...),
-	)
-	app.kong.FatalIfErrorf(err)
+	chunks := getChunks(string(source), options)
+
+	var results []string
+	for _, chunk := range chunks {
+		chunkResult, err := translator.Translate(
+			ctx,
+			chunk,
+			dragoman.Source(options.SourceLang),
+			dragoman.Target(options.TargetLang),
+			dragoman.Preserve(options.Preserve...),
+			dragoman.Rules(options.Rules...),
+		)
+		app.kong.FatalIfErrorf(err)
+		results = append(results, chunkResult)
+	}
+
+	result := strings.Join(results, "\n\n")
 
 	if options.Dry {
 		fmt.Fprintf(os.Stdout, "%s\n", result)
@@ -261,4 +274,16 @@ func jsonMarshal(v any) ([]byte, error) {
 	enc.SetIndent("", "  ")
 	err := enc.Encode(v)
 	return buf.Bytes(), err
+}
+
+func getChunks(source string, opts cliOptions) []string {
+	if len(opts.SplitChunks) == 0 {
+		return []string{string(source)}
+	}
+
+	if opts.Verbose {
+		fmt.Fprintf(os.Stderr, "Splitting source file at lines with prefixes: %v\n", opts.SplitChunks)
+	}
+
+	return chunks.Chunks(string(source), opts.SplitChunks)
 }

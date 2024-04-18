@@ -1,4 +1,4 @@
-package markdown_test
+package chunks_test
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/google/go-cmp/cmp"
-	"github.com/modernice/dragoman/internal/markdown"
+	"github.com/modernice/dragoman/internal/chunks"
 )
 
 func TestChunks(t *testing.T) {
@@ -37,22 +37,22 @@ func TestChunks(t *testing.T) {
 	`))
 
 	tests := []struct {
-		name        string
-		splitLevels []int
-		expected    []string
+		name          string
+		splitPrefixes []string
+		expected      []string
 	}{
 		{
 			name:     "no levels",
 			expected: []string{source},
 		},
 		{
-			name:        "heading #1",
-			splitLevels: []int{1},
-			expected:    []string{source},
+			name:          "heading #1",
+			splitPrefixes: []string{"# "},
+			expected:      []string{source},
 		},
 		{
-			name:        "heading #2",
-			splitLevels: []int{2},
+			name:          "heading #2",
+			splitPrefixes: []string{"## "},
 			expected: []string{
 				takeLines(source, 3),
 				skipAndTakeLines(source, 4, 3),
@@ -62,16 +62,16 @@ func TestChunks(t *testing.T) {
 			},
 		},
 		{
-			name:        "heading #3",
-			splitLevels: []int{3},
+			name:          "heading #3",
+			splitPrefixes: []string{"### "},
 			expected: []string{
 				takeLines(source, 11),
 				skipAndTakeLines(source, 12, 11),
 			},
 		},
 		{
-			name:        "heading #1 and #2",
-			splitLevels: []int{1, 2},
+			name:          "heading #1 and #2",
+			splitPrefixes: []string{"# ", "## "},
 			expected: []string{
 				takeLines(source, 3),
 				skipAndTakeLines(source, 4, 3),
@@ -81,8 +81,8 @@ func TestChunks(t *testing.T) {
 			},
 		},
 		{
-			name:        "heading #2 and #3",
-			splitLevels: []int{2, 3},
+			name:          "heading #2 and #3",
+			splitPrefixes: []string{"## ", "### "},
 			expected: []string{
 				takeLines(source, 3),
 				skipAndTakeLines(source, 4, 3),
@@ -96,7 +96,7 @@ func TestChunks(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			chunks := markdown.Chunks(source, tt.splitLevels)
+			chunks := chunks.Chunks(source, tt.splitPrefixes)
 
 			if len(tt.expected) != len(chunks) {
 				t.Fatalf("unexpected number of chunks. want %d; got %d", len(tt.expected), len(chunks))

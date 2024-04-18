@@ -130,9 +130,9 @@ func (t *Translator) Translate(ctx context.Context, document string, opts ...Tra
 
 	prompt := heredoc.Docf(`
 		Translate the following document %sto %s:
-		---
+		---<DOC_BEGIN>---
 		%s
-		---
+		---<DOC_END>---
 
 		%s
 
@@ -149,7 +149,10 @@ func (t *Translator) Translate(ctx context.Context, document string, opts ...Tra
 		return "", err
 	}
 
-	return trimDividers(response), nil
+	response = trimDividers(response)
+	response = addNewline(response)
+
+	return response, nil
 }
 
 func trimDividers(text string) string {
@@ -160,13 +163,25 @@ func trimDividers(text string) string {
 		return text
 	}
 
-	if out[0] == "---" {
+	if out[0] == "---<DOC_BEGIN>---" {
 		out = out[1:]
 	}
 
-	if len(out) > 0 && out[len(out)-1] == "---" {
+	if len(out) > 0 && out[len(out)-1] == "---<DOC_END>---" {
 		out = out[:len(out)-1]
 	}
 
 	return strings.TrimSpace(strings.Join(out, "\n"))
+}
+
+func addNewline(text string) string {
+	if text == "" {
+		return text
+	}
+
+	if !strings.HasSuffix(text, "\n") {
+		return text + "\n"
+	}
+
+	return text
 }
