@@ -77,6 +77,17 @@ option is not provided, the translated content will be printed to stdout.
 dragoman source.json --out target.json
 ```
 
+**`--split-chunks`**
+
+Split the source document into chunks before translating. This can help to fit
+the documents into the context size of OpenAI's models. Each line that starts
+with one of the provided prefixes will create a new chunk.
+
+**Example: Split a Markdown file into chunks when encountering H2 and H3 headings:**
+```bash
+dragoman source.json --split-chunks "## " --split-chunks "### "
+```
+
 **`-u` or `--update`**
 
 Enable this option to only translate missing fields from the source file that
