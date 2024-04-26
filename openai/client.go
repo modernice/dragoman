@@ -28,6 +28,8 @@ const (
 	// requests to the OpenAI API. This value can be changed by using the Timeout
 	// option when creating a new client.
 	DefaultTimeout = 3 * time.Minute
+
+	DefaultChunkTimeout = 5 * time.Second
 )
 
 var modelTokens = map[string]int{
@@ -49,6 +51,7 @@ type Client struct {
 	temperature    float32
 	topP           float32
 	timeout        time.Duration
+	chunkTimeout   time.Duration
 	verbose        bool
 	stream         io.Writer
 	client         *openai.Client
@@ -106,6 +109,12 @@ func TopP(topP float32) Option {
 	}
 }
 
+func ChunkTimeout(timeout time.Duration) Option {
+	return func(m *Client) {
+		m.chunkTimeout = timeout
+	}
+}
+
 // Timeout is a function that sets the timeout duration for the Client. It
 // returns an Option that, when provided to the New function, modifies the
 // timeout duration of the created Client instance. The timeout duration
@@ -142,10 +151,11 @@ func Stream(stream io.Writer) Option {
 // API requests.
 func New(apiToken string, opts ...Option) *Client {
 	c := Client{
-		temperature: DefaultTemperature,
-		topP:        DefaultTopP,
-		timeout:     DefaultTimeout,
-		client:      openai.NewClient(apiToken),
+		temperature:  DefaultTemperature,
+		topP:         DefaultTopP,
+		timeout:      DefaultTimeout,
+		chunkTimeout: DefaultChunkTimeout,
+		client:       openai.NewClient(apiToken),
 	}
 	for _, opt := range opts {
 		opt(&c)
@@ -229,7 +239,7 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		if err != nil {
 			return "", err
 		}
-		return streamReader(c, stream).read(ctx, func(stream *openai.ChatCompletionStream) (chunk, error) {
+		return streamReader(c, stream, c.chunkTimeout).read(ctx, func(stream *openai.ChatCompletionStream) (chunk, error) {
 			resp, err := stream.Recv()
 			if err != nil {
 				return chunk{}, err
@@ -261,7 +271,7 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 	if err != nil {
 		return "", err
 	}
-	return streamReader(c, stream).read(ctx, func(stream *openai.CompletionStream) (chunk, error) {
+	return streamReader(c, stream, c.chunkTimeout).read(ctx, func(stream *openai.CompletionStream) (chunk, error) {
 		resp, err := stream.Recv()
 		if err != nil {
 			return chunk{}, err
@@ -289,18 +299,20 @@ func isChatModel(model string) bool {
 }
 
 type chunkReader[Stream any] struct {
-	client *Client
-	stream Stream
+	client  *Client
+	stream  Stream
+	timeout time.Duration
 }
 
-func streamReader[Stream any](client *Client, stream Stream) chunkReader[Stream] {
-	return chunkReader[Stream]{
-		client: client,
-		stream: stream,
+func streamReader[Stream any](client *Client, stream Stream, timeout time.Duration) *chunkReader[Stream] {
+	return &chunkReader[Stream]{
+		client:  client,
+		stream:  stream,
+		timeout: timeout,
 	}
 }
 
-func (r chunkReader[Stream]) read(ctx context.Context, getChunk func(Stream) (chunk, error)) (string, error) {
+func (r *chunkReader[Stream]) read(ctx context.Context, getChunk func(Stream) (chunk, error)) (string, error) {
 	var text strings.Builder
 
 	if r.client.stream != nil {
@@ -308,7 +320,7 @@ func (r chunkReader[Stream]) read(ctx context.Context, getChunk func(Stream) (ch
 	}
 
 	for {
-		timeout := time.NewTimer(5 * time.Second)
+		timeout := time.NewTimer(r.timeout)
 
 		chunkC := make(chan chunk)
 		errC := make(chan error)
