@@ -340,7 +340,7 @@ func (r chunkReader[Stream]) read(ctx context.Context, getChunk func(Stream) (ch
 			timeout.Stop()
 			return text.String(), ctx.Err()
 		case <-timeout.C:
-			return text.String(), fmt.Errorf("chunk timeout")
+			return text.String(), fmt.Errorf("token-chunk timeout")
 		case err := <-errC:
 			timeout.Stop()
 			return text.String(), err
