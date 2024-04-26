@@ -36,14 +36,6 @@ const (
 	DefaultChunkTimeout = 5 * time.Second
 )
 
-var modelTokens = map[string]int{
-	openai.GPT3Dot5Turbo:    4096,
-	openai.GPT3Dot5Turbo16K: 16384,
-	openai.GPT4:             8192,
-	openai.GPT432K:          32768,
-	"default":               4096,
-}
-
 // Client is a configurable interface to the OpenAI API. It allows for the
 // generation of text completions using various models, with adjustable
 // parameters for token count, temperature, and topP. A specified timeout can be
@@ -170,11 +162,6 @@ func New(apiToken string, opts ...Option) *Client {
 
 	if c.model == "" {
 		c.model = DefaultModel
-	}
-
-	var ok bool
-	if c.maxTokens, ok = modelTokens[c.model]; !ok {
-		c.maxTokens = modelTokens["default"]
 	}
 
 	c.debug("Model: %s", c.model)
