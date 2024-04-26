@@ -203,6 +203,7 @@ func (app *App) translate() {
 			Target:       options.Translate.TargetLang,
 			Preserve:     options.Translate.Preserve,
 			Instructions: options.Translate.Instructions,
+			SplitChunks:  options.Translate.SplitChunks,
 		},
 	)
 	app.kong.FatalIfErrorf(err, "failed to translate document")
