@@ -21,15 +21,28 @@ import (
 )
 
 type cliOptions struct {
-	SourcePath  string   `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
-	SourceLang  string   `name:"from" short:"f" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
-	TargetLang  string   `name:"to" short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
-	Preserve    []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
-	Rules       []string `name:"rule" short:"r" help:"Additional rules for the prompt" env:"DRAGOMAN_RULES"`
-	Out         string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
-	Update      bool     `short:"u" help:"Only translate missing fields in output file (requires JSON files)" env:"DRAGOMAN_UPDATE"`
-	Dry         bool     `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
-	SplitChunks []string `name:"split-chunks" help:"Chunk source file at lines that start with one of the provided prefixes" env:"DRAGOMAN_SPLIT_CHUNKS"`
+	Translate struct {
+		SourcePath   string   `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
+		SourceLang   string   `name:"from" short:"f" help:"Source language" env:"DRAGOMAN_SOURCE_LANG" default:"auto"`
+		TargetLang   string   `name:"to" short:"t" help:"Target language" env:"DRAGOMAN_TARGET_LANG" default:"English"`
+		Preserve     []string `short:"p" help:"Preserve the specified terms/words" env:"DRAGOMAN_PRESERVE"`
+		Instructions []string `name:"instruct" short:"i" help:"Additional instructions for the prompt" env:"DRAGOMAN_INSTRUCT"`
+		Out          string   `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
+		Update       bool     `short:"u" help:"Only translate missing fields in output file (requires JSON files)" env:"DRAGOMAN_UPDATE"`
+		SplitChunks  []string `name:"split-chunks" help:"Chunk source file at lines that start with one of the provided prefixes" env:"DRAGOMAN_SPLIT_CHUNKS"`
+		Dry          bool     `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
+	} `cmd:"translate" default:"withargs"`
+
+	Improve struct {
+		SourcePath   string             `arg:"source" name:"source" optional:"" help:"Source file" type:"path" env:"DRAGOMAN_SOURCE"`
+		Out          string             `short:"o" help:"Output file" type:"path" env:"DRAGOMAN_OUT"`
+		SplitChunks  []string           `name:"split-chunks" help:"Chunk source file at lines that start with one of the provided prefixes" env:"DRAGOMAN_SPLIT_CHUNKS"`
+		Formality    dragoman.Formality `name:"formality" help:"Formality of the text" env:"DRAGOMAN_FORMALITY"`
+		Instructions []string           `name:"instruct" short:"i" help:"Additional instructions for the prompt" env:"DRAGOMAN_INSTRUCT"`
+		Keywords     []string           `name:"keywords" help:"Keywords to optimize for" env:"DRAGOMAN_KEYWORDS"`
+		Language     string             `name:"language" short:"l" help:"Write the text in the given language" env:"DRAGOMAN_LANGUAGE"`
+		Dry          bool               `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
+	} `cmd:"improve"`
 
 	OpenAIKey            string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
 	OpenAIModel          string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
@@ -73,17 +86,28 @@ func New(version string) *App {
 	return &app
 }
 
-// Run initializes and starts the application, handling command-line parsing,
-// signal interrupts, file input/output operations, and invoking the translation
-// process using AI language models. It manages errors gracefully, provides
-// feedback to the user, and ensures proper resource cleanup.
+// Run starts the application based on the command-line arguments provided. It
+// determines the operation mode (translate or improve), executes the
+// corresponding function, and handles default behavior if no specific command
+// is recognized.
 func (app *App) Run() {
-	if options.Update && options.Out == "" {
+	switch app.kong.Command() {
+	case "translate <source>":
+		app.translate()
+	case "improve <source>":
+		app.improve()
+	default:
+		app.kong.PrintUsage(false)
+	}
+}
+
+func (app *App) translate() {
+	if options.Translate.Update && options.Translate.Out == "" {
 		app.kong.Fatalf("you must provide the <out> file when using --update")
 	}
 
-	if options.Out == "" {
-		options.Dry = true
+	if options.Translate.Out == "" {
+		options.Translate.Dry = true
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -103,13 +127,13 @@ func (app *App) Run() {
 	}
 
 	model := openai.New(options.OpenAIKey, opts...)
-	translator := dragoman.New(model)
+	translator := dragoman.NewTranslator(model)
 
 	var (
 		source []byte
 		err    error
 	)
-	if options.SourcePath == "" {
+	if options.Translate.SourcePath == "" {
 		source, err = readAll(os.Stdin)
 		if errors.Is(err, errEmptyStdin) {
 			app.kong.Fatalf("you must either provide the <source> file or provide the source text via stdin")
@@ -117,24 +141,24 @@ func (app *App) Run() {
 			app.kong.FatalIfErrorf(err, "failed to read source from stdin")
 		}
 	} else {
-		source, err = os.ReadFile(options.SourcePath)
-		app.kong.FatalIfErrorf(err, "failed to read source file %q", options.SourcePath)
+		source, err = os.ReadFile(options.Translate.SourcePath)
+		app.kong.FatalIfErrorf(err, "failed to read source file %q", options.Translate.SourcePath)
 	}
 
 	var (
 		sourceMap      map[string]any
 		originalOutMap map[string]any
 	)
-	if options.Update {
+	if options.Translate.Update {
 		err = json.Unmarshal(source, &sourceMap)
 		app.kong.FatalIfErrorf(err, "failed to unmarshal source as JSON")
 
-		outFile, err := os.ReadFile(options.Out)
+		outFile, err := os.ReadFile(options.Translate.Out)
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			app.kong.FatalIfErrorf(err, "failed to read target file %q", options.Out)
+			app.kong.FatalIfErrorf(err, "failed to read target file %q", options.Translate.Out)
 		} else if err == nil {
 			err = json.Unmarshal(outFile, &originalOutMap)
-			app.kong.FatalIfErrorf(err, "failed to unmarshal target file %q", options.Out)
+			app.kong.FatalIfErrorf(err, "failed to unmarshal target file %q", options.Translate.Out)
 		} else {
 			originalOutMap = map[string]any{}
 		}
@@ -144,7 +168,7 @@ func (app *App) Run() {
 
 		if len(paths) == 0 {
 			if options.Verbose {
-				fmt.Fprintf(os.Stderr, "No fields missing in output file %q.\n", options.Out)
+				fmt.Fprintf(os.Stderr, "No fields missing in output file %q.\n", options.Translate.Out)
 			}
 			return
 		}
@@ -159,21 +183,23 @@ func (app *App) Run() {
 		}
 	}
 
-	if options.SourceLang == "auto" {
-		options.SourceLang = ""
+	if options.Translate.SourceLang == "auto" {
+		options.Translate.SourceLang = ""
 	}
 
-	chunks := getChunks(string(source), options)
+	chunks := getChunks(string(source), options.Translate.SplitChunks, options.Verbose)
 
 	var results []string
 	for _, chunk := range chunks {
 		chunkResult, err := translator.Translate(
 			ctx,
-			chunk,
-			dragoman.Source(options.SourceLang),
-			dragoman.Target(options.TargetLang),
-			dragoman.Preserve(options.Preserve...),
-			dragoman.Rules(options.Rules...),
+			dragoman.TranslateParams{
+				Document:     chunk,
+				Source:       options.Translate.SourceLang,
+				Target:       options.Translate.TargetLang,
+				Preserve:     options.Translate.Preserve,
+				Instructions: options.Translate.Instructions,
+			},
 		)
 		app.kong.FatalIfErrorf(err)
 		results = append(results, chunkResult)
@@ -181,12 +207,12 @@ func (app *App) Run() {
 
 	result := strings.Join(results, "\n\n")
 
-	if options.Dry {
+	if options.Translate.Dry {
 		fmt.Fprintf(os.Stdout, "%s\n", result)
 		return
 	}
 
-	if options.Update {
+	if options.Translate.Update {
 		var resultMap map[string]any
 		if err := json.Unmarshal([]byte(result), &resultMap); err != nil {
 			app.kong.FatalIfErrorf(err, "failed to unmarshal result as JSON")
@@ -200,21 +226,102 @@ func (app *App) Run() {
 		result = string(marshaled)
 	}
 
-	f, err := os.Create(options.Out)
+	f, err := os.Create(options.Translate.Out)
 	if err != nil {
-		app.kong.FatalIfErrorf(err, "failed to create output file %q", options.Out)
+		app.kong.FatalIfErrorf(err, "failed to create output file %q", options.Translate.Out)
 		return
 	}
 	defer f.Close()
 
 	if _, err = fmt.Fprint(f, result); err != nil {
-		app.kong.FatalIfErrorf(err, "failed to write to output file %q", options.Out)
+		app.kong.FatalIfErrorf(err, "failed to write to output file %q", options.Translate.Out)
 		return
 	}
 
 	if err = f.Close(); err != nil {
-		app.kong.FatalIfErrorf(err, "failed to close output file %q", options.Out)
+		app.kong.FatalIfErrorf(err, "failed to close output file %q", options.Translate.Out)
 		return
+	}
+}
+
+func (app *App) improve() {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	opts := []openai.Option{
+		openai.Model(options.OpenAIModel),
+		openai.ResponseFormat(options.OpenAIResponseFormat),
+		openai.Temperature(options.OpenAITemperature),
+		openai.TopP(options.OpenAITopP),
+		openai.Timeout(options.Timeout),
+		openai.Verbose(options.Verbose),
+	}
+
+	if options.Stream {
+		opts = append(opts, openai.Stream(os.Stdout))
+	}
+
+	model := openai.New(options.OpenAIKey, opts...)
+	improver := dragoman.NewImprover(model)
+
+	var (
+		source []byte
+		err    error
+	)
+	if options.Improve.SourcePath == "" {
+		source, err = readAll(os.Stdin)
+		if errors.Is(err, errEmptyStdin) {
+			app.kong.Fatalf("you must either provide the <source> file or provide the source text via stdin")
+		} else {
+			app.kong.FatalIfErrorf(err, "failed to read source from stdin")
+		}
+	} else {
+		source, err = os.ReadFile(options.Improve.SourcePath)
+		app.kong.FatalIfErrorf(err, "failed to read source file %q", options.Improve.SourcePath)
+	}
+
+	result, err := improver.Improve(ctx, dragoman.ImproveParams{
+		Document:     string(source),
+		SplitChunks:  options.Improve.SplitChunks,
+		Formality:    options.Improve.Formality,
+		Instructions: options.Improve.Instructions,
+		Keywords:     options.Improve.Keywords,
+		Language:     options.Improve.Language,
+	})
+	if err != nil {
+		app.kong.FatalIfErrorf(err, "failed to improve document")
+	}
+
+	if options.Improve.Dry {
+		fmt.Fprintf(os.Stdout, "%s\n", result)
+		return
+	}
+
+	f, err := os.Create(options.Improve.Out)
+	if err != nil {
+		app.kong.FatalIfErrorf(err, "failed to create output file %q", options.Improve.Out)
+		return
+	}
+	defer f.Close()
+
+	if _, err = fmt.Fprint(f, result); err != nil {
+		app.kong.FatalIfErrorf(err, "failed to write to output file %q", options.Improve.Out)
+		return
+	}
+
+	if err = f.Close(); err != nil {
+		app.kong.FatalIfErrorf(err, "failed to close output file %q", options.Improve.Out)
+		return
+	}
+
+	if options.Improve.Dry {
+		fmt.Fprintf(os.Stdout, "%s\n", result)
+	}
+
+	if options.Improve.Out != "" {
+		if err := os.WriteFile(options.Improve.Out, []byte(result), 0644); err != nil {
+			app.kong.FatalIfErrorf(err, "failed to write output to %q", options.Improve.Out)
+		}
 	}
 }
 
@@ -276,14 +383,14 @@ func jsonMarshal(v any) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-func getChunks(source string, opts cliOptions) []string {
-	if len(opts.SplitChunks) == 0 {
+func getChunks(source string, splitChunks []string, verbose bool) []string {
+	if len(splitChunks) == 0 {
 		return []string{string(source)}
 	}
 
-	if opts.Verbose {
-		fmt.Fprintf(os.Stderr, "Splitting source file at lines with prefixes: %v\n", opts.SplitChunks)
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Splitting source file at lines with prefixes: %v\n", splitChunks)
 	}
 
-	return chunks.Chunks(string(source), opts.SplitChunks)
+	return chunks.Chunks(string(source), splitChunks)
 }

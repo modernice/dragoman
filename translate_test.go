@@ -25,7 +25,7 @@ func TestTranslator_Translate(t *testing.T) {
 		Output only the translated document, no chat.
 	`, source)
 
-	prompt(wantPrompt).expect(t, source)
+	prompt(wantPrompt).expect(t, dragoman.TranslateParams{Document: source})
 }
 
 func TestSource(t *testing.T) {
@@ -45,7 +45,7 @@ func TestSource(t *testing.T) {
 		Output only the translated document, no chat.
 	`, source)
 
-	prompt(wantPrompt).expect(t, source, dragoman.Source("French"))
+	prompt(wantPrompt).expect(t, dragoman.TranslateParams{Document: source, Source: "French"})
 }
 
 func TestTarget(t *testing.T) {
@@ -65,7 +65,7 @@ func TestTarget(t *testing.T) {
 		Output only the translated document, no chat.
 	`, source)
 
-	prompt(wantPrompt).expect(t, source, dragoman.Target("French"))
+	prompt(wantPrompt).expect(t, dragoman.TranslateParams{Document: source, Target: "French"})
 }
 
 func TestPreserve(t *testing.T) {
@@ -86,7 +86,7 @@ func TestPreserve(t *testing.T) {
 		Output only the translated document, no chat.
 	`, source)
 
-	prompt(wantPrompt).expect(t, source, dragoman.Preserve("HalloWeltBot"))
+	prompt(wantPrompt).expect(t, dragoman.TranslateParams{Document: source, Preserve: []string{"HalloWeltBot"}})
 }
 
 func TestPreserve_multiple(t *testing.T) {
@@ -107,12 +107,12 @@ func TestPreserve_multiple(t *testing.T) {
 		Output only the translated document, no chat.
 	`, source)
 
-	prompt(wantPrompt).expect(t, source, dragoman.Preserve("HalloWeltBot", "WeltFabrik"))
+	prompt(wantPrompt).expect(t, dragoman.TranslateParams{Document: source, Preserve: []string{"HalloWeltBot", "WeltFabrik"}})
 }
 
 type prompt string
 
-func (p prompt) expect(t *testing.T, document string, opts ...dragoman.TranslateOption) {
+func (p prompt) expect(t *testing.T, params dragoman.TranslateParams) {
 	t.Helper()
 
 	var providedPrompt string
@@ -121,9 +121,9 @@ func (p prompt) expect(t *testing.T, document string, opts ...dragoman.Translate
 		return "", nil
 	})
 
-	trans := dragoman.New(model)
+	trans := dragoman.NewTranslator(model)
 
-	if _, err := trans.Translate(context.Background(), document, opts...); err != nil {
+	if _, err := trans.Translate(context.Background(), params); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 

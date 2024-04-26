@@ -55,7 +55,7 @@ human would understand (like 'English', 'German', 'French', etc.). If not
 provided, it defaults to 'auto', meaning the language is automatically detected.
 
 ```bash
-dragoman source.json --from English
+dragoman translate source.json --from English
 ```
 
 **`-t` or `--to`**
@@ -65,7 +65,7 @@ specified in any format that a human would understand (like 'English', 'German',
 'French', etc.). If not provided, it defaults to 'English'.
 
 ```bash
-dragoman source.json --to French
+dragoman translate source.json --to French
 ```
 
 **`-o` or `--out`**
@@ -74,7 +74,7 @@ The path to the output file where the translated content will be saved. If this
 option is not provided, the translated content will be printed to stdout.
 
 ```bash
-dragoman source.json --out target.json
+dragoman translate source.json --out target.json
 ```
 
 **`--split-chunks`**
@@ -85,7 +85,7 @@ with one of the provided prefixes will create a new chunk.
 
 **Example: Split a Markdown file into chunks when encountering H2 and H3 headings:**
 ```bash
-dragoman source.json --split-chunks "## " --split-chunks "### "
+dragoman translate source.json --split-chunks "## " --split-chunks "### "
 ```
 
 **`-u` or `--update`**
@@ -95,7 +95,7 @@ are missing in the output file. This option requires the source and output files
 to be JSON!
 
 ```bash
-dragoman source.json --out target.json --update
+dragoman translate source.json --out target.json --update
 ```
 
 #### Example
@@ -125,7 +125,7 @@ option to only translate the newly added fields and merge them into the output f
 ```
 
 ```bash
-dragoman en.json --out de.json --update
+dragoman translate en.json --out de.json --update
 ```
 
 Result:
@@ -146,7 +146,7 @@ Result:
 This option allows you to specify a list of specific words or phrases, separated by commas, that you want to remain unchanged during the translation process. It's particularly useful for ensuring that certain terms, which may have significance in their original form or are used in specific contexts (like code, trademarks, or names), are not altered. These specified terms will be recognized and preserved whether they appear in isolation or as part of larger strings. This feature is especially handy for content that includes embedded terms within other elements, such as HTML tags. For instance, using --preserve ensures that a term like <span class="font-bold">Drago</span>man retains its original form post-translation. Note that the effectiveness of this feature may vary depending on the language model used, and it is optimized for use with OpenAI's GPT models.
 
 ```bash
-dragoman source.json --preserve Dragoman
+dragoman translate source.json --preserve Dragoman
 ```
 
 **`-v` or `--verbose`**
@@ -155,7 +155,7 @@ A flag that, if provided, makes the CLI provide more detailed output about the
 process and result of the translation.
 
 ```bash
-dragoman source.json --verbose
+dragoman translate source.json --verbose
 ```
 
 **`-h` or `--help`**
