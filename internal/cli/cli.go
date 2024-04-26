@@ -49,6 +49,7 @@ type cliOptions struct {
 	OpenAITemperature    float32 `name:"temperature" help:"OpenAI temperature" env:"OPENAI_TEMPERATURE" default:"0.3"`
 	OpenAITopP           float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
 	OpenAIResponseFormat string  `name:"format" help:"OpenAI response format ('text' or 'json_object')" env:"OPENAI_RESPONSE_FORMAT" default:"text"`
+	OpenAIChunkTimeout   string  `name:"chunk-timeout" help:"Timeout for each token chunk" env:"OPENAI_CHUNK_TIMEOUT"`
 
 	Timeout time.Duration `short:"T" help:"Timeout for API requests" env:"DRAGOMAN_TIMEOUT" default:"3m"`
 	Verbose bool          `short:"v" help:"Verbose output"`
@@ -124,6 +125,14 @@ func (app *App) translate() {
 
 	if options.Stream {
 		opts = append(opts, openai.Stream(os.Stdout))
+	}
+
+	if options.OpenAIChunkTimeout != "" {
+		chunkTimeout, err := time.ParseDuration(options.OpenAIChunkTimeout)
+		if err != nil {
+			app.kong.Fatalf("invalid chunk timeout: %v", err)
+		}
+		opts = append(opts, openai.ChunkTimeout(chunkTimeout))
 	}
 
 	model := openai.New(options.OpenAIKey, opts...)
