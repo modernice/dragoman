@@ -125,11 +125,12 @@ func (t *Translator) translateChunk(ctx context.Context, chunk string, params Tr
 
 func trimDividers(text string) string {
 	lines := strings.Split(text, "\n")
-	out := slices.Clone(lines)
 
-	if len(out) < 1 {
-		return text
+	if len(lines) < 1 {
+		return strings.TrimSpace(text)
 	}
+
+	out := slices.Clone(lines)
 
 	if out[0] == "---<DOC_BEGIN>---" {
 		out = out[1:]
