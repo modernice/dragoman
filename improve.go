@@ -77,7 +77,7 @@ func (imp *Improver) Improve(ctx context.Context, params ImproveParams) (string,
 		result = append(result, translated)
 	}
 
-	return addNewline(strings.Join(result, "\n")), nil
+	return addNewline(strings.Join(result, "\n\n")), nil
 }
 
 func (imp *Improver) improveChunk(ctx context.Context, chunk string, params ImproveParams) (string, error) {

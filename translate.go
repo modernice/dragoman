@@ -79,7 +79,7 @@ func (t *Translator) Translate(ctx context.Context, params TranslateParams) (str
 		result = append(result, translated)
 	}
 
-	return addNewline(strings.Join(result, "\n")), nil
+	return addNewline(strings.Join(result, "\n\n")), nil
 }
 
 func (t *Translator) translateChunk(ctx context.Context, chunk string, params TranslateParams) (string, error) {
