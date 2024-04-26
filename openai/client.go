@@ -29,6 +29,10 @@ const (
 	// option when creating a new client.
 	DefaultTimeout = 3 * time.Minute
 
+	// DefaultChunkTimeout specifies the default duration for waiting on a chunk of
+	// data during streaming operations before timing out. This value can be
+	// adjusted to control how long the system will wait for a chunk before
+	// considering the operation timed out.
 	DefaultChunkTimeout = 5 * time.Second
 )
 
@@ -85,6 +89,9 @@ func ResponseFormat[Format string | openai.ChatCompletionResponseFormatType](for
 	}
 }
 
+// MaxTokens configures the maximum number of tokens that the Client can use for
+// generating text completions. It accepts an integer value and returns an
+// [Option] to modify a [Client] instance.
 func MaxTokens(maxTokens int) Option {
 	return func(m *Client) {
 		m.maxTokens = maxTokens
@@ -106,6 +113,9 @@ func TopP(topP float32) Option {
 	}
 }
 
+// ChunkTimeout sets the maximum duration a Client should wait for a chunk of
+// data during streaming operations before timing out. This is configured as an
+// Option that modifies the chunkTimeout field of a Client instance.
 func ChunkTimeout(timeout time.Duration) Option {
 	return func(m *Client) {
 		m.chunkTimeout = timeout
