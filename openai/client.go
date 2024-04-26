@@ -85,9 +85,6 @@ func ResponseFormat[Format string | openai.ChatCompletionResponseFormatType](for
 	}
 }
 
-// MaxTokens sets the maximum number of tokens that the Client's model can
-// generate. It is an option that can be passed when creating a new Client.
-// If not set, the default max tokens for the selected model will be used.
 func MaxTokens(maxTokens int) Option {
 	return func(m *Client) {
 		m.maxTokens = maxTokens
@@ -173,7 +170,10 @@ func New(apiToken string, opts ...Option) *Client {
 	c.debug("Model: %s", c.model)
 	c.debug("Temperature: %f", c.temperature)
 	c.debug("TopP: %f", c.topP)
-	c.debug("Max tokens: %d", c.maxTokens)
+
+	if c.maxTokens > 0 {
+		c.debug("Max tokens: %d", c.maxTokens)
+	}
 
 	return &c
 }
@@ -215,14 +215,6 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 			}, msgs...)
 		}
 
-		promptTokens, err := ChatTokens(c.model, msgs)
-		if err != nil {
-			return "", err
-		}
-
-		// -1 because "This model's maximum context length is 8192 tokens. However, you requested 8192 tokens" ???
-		maxTokens := c.maxTokens - promptTokens - 1
-
 		var responseFormat *openai.ChatCompletionResponseFormat
 		if c.responseFormat != "" {
 			responseFormat = &openai.ChatCompletionResponseFormat{Type: c.responseFormat}
@@ -230,7 +222,7 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 
 		stream, err := c.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
 			Model:          c.model,
-			MaxTokens:      maxTokens,
+			MaxTokens:      c.maxTokens,
 			Temperature:    c.temperature,
 			TopP:           c.topP,
 			Messages:       msgs,
