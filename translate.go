@@ -118,16 +118,14 @@ func (t *Translator) translateChunk(ctx context.Context, chunk string, params Tr
 		return "", err
 	}
 
-	response = trimDividers(response)
-
-	return response, nil
+	return trimDividers(response), nil
 }
 
 func trimDividers(text string) string {
 	lines := strings.Split(text, "\n")
 
-	if len(lines) < 1 {
-		return strings.TrimSpace(text)
+	if len(lines) == 0 {
+		return text
 	}
 
 	out := slices.Clone(lines)

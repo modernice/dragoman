@@ -10,7 +10,6 @@ import (
 	"io/fs"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -196,25 +195,17 @@ func (app *App) translate() {
 		options.Translate.SourceLang = ""
 	}
 
-	chunks := getChunks(string(source), options.Translate.SplitChunks, options.Verbose)
-
-	var results []string
-	for _, chunk := range chunks {
-		chunkResult, err := translator.Translate(
-			ctx,
-			dragoman.TranslateParams{
-				Document:     chunk,
-				Source:       options.Translate.SourceLang,
-				Target:       options.Translate.TargetLang,
-				Preserve:     options.Translate.Preserve,
-				Instructions: options.Translate.Instructions,
-			},
-		)
-		app.kong.FatalIfErrorf(err)
-		results = append(results, chunkResult)
-	}
-
-	result := strings.Join(results, "\n\n")
+	result, err := translator.Translate(
+		ctx,
+		dragoman.TranslateParams{
+			Document:     string(source),
+			Source:       options.Translate.SourceLang,
+			Target:       options.Translate.TargetLang,
+			Preserve:     options.Translate.Preserve,
+			Instructions: options.Translate.Instructions,
+		},
+	)
+	app.kong.FatalIfErrorf(err, "failed to translate document")
 
 	if options.Translate.Dry {
 		fmt.Fprintf(os.Stdout, "%s\n", result)
