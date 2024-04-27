@@ -70,6 +70,7 @@ func (t *Translator) Translate(ctx context.Context, params TranslateParams) (str
 	}
 
 	docChunks := chunks.Chunks(params.Document, params.SplitChunks)
+
 	result := make([]string, 0, len(docChunks))
 	for _, chunk := range docChunks {
 		translated, err := t.translateChunk(ctx, chunk, params)
