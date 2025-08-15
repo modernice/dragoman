@@ -217,11 +217,19 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 			responseFormat = &openai.ChatCompletionResponseFormat{Type: c.responseFormat}
 		}
 
+		// GPT-5 models do not support temperature/top_p; omit by using zero values
+		temp := c.temperature
+		topP := c.topP
+		if isGPT5Model(c.model) {
+			temp = 0
+			topP = 0
+		}
+
 		stream, err := c.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
 			Model:          c.model,
 			MaxTokens:      c.maxTokens,
-			Temperature:    c.temperature,
-			TopP:           c.topP,
+			Temperature:    temp,
+			TopP:           topP,
 			Messages:       msgs,
 			ResponseFormat: responseFormat,
 		})
@@ -251,11 +259,21 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 	maxTokens := c.maxTokens - promptTokens - 1
 
 	stream, err := c.client.CreateCompletionStream(ctx, openai.CompletionRequest{
-		Model:       c.model,
-		MaxTokens:   maxTokens,
-		Temperature: c.temperature,
-		TopP:        c.topP,
-		Prompt:      prompt,
+		Model:     c.model,
+		MaxTokens: maxTokens,
+		Temperature: func() float32 {
+			if isGPT5Model(c.model) {
+				return 0
+			}
+			return c.temperature
+		}(),
+		TopP: func() float32 {
+			if isGPT5Model(c.model) {
+				return 0
+			}
+			return c.topP
+		}(),
+		Prompt: prompt,
 	})
 	if err != nil {
 		return "", err
@@ -285,6 +303,11 @@ func (m *Client) debug(format string, args ...interface{}) {
 
 func isChatModel(model string) bool {
 	return strings.HasPrefix(model, "gpt-")
+}
+
+// isGPT5Model returns true if the model string refers to a GPT-5 family model.
+func isGPT5Model(model string) bool {
+	return strings.HasPrefix(model, "gpt-5")
 }
 
 type chunkReader[Stream any] struct {
