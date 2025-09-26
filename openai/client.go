@@ -8,17 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sashabaranov/go-openai"
+	openai "github.com/openai/openai-go/v2"
+	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/responses"
 )
 
 const (
 	// DefaultModel is the default language model used for generating text when no
 	// specific model is set during the client creation.
-	DefaultModel = openai.GPT3Dot5Turbo
-
-	// DefaultTemperature is the default value for the temperature parameter in the
-	// AI model. It affects the randomness of the model's output.
-	DefaultTemperature = 0.3
+	DefaultModel = "gpt-5-mini"
 
 	// DefaultTopP is the default value for the "Top P" parameter used in OpenAI's
 	// language models.
@@ -38,19 +36,19 @@ const (
 
 // Client is a configurable interface to the OpenAI API. It allows for the
 // generation of text completions using various models, with adjustable
-// parameters for token count, temperature, and topP. A specified timeout can be
+// parameters for token count and topP. A specified timeout can be
 // set for API requests.
 type Client struct {
-	model          string
-	responseFormat openai.ChatCompletionResponseFormatType
-	maxTokens      int
-	temperature    float32
-	topP           float32
-	timeout        time.Duration
-	chunkTimeout   time.Duration
-	verbose        bool
-	stream         io.Writer
-	client         *openai.Client
+	model           string
+	responseFormat  string
+	reasoningEffort string
+	maxTokens       int
+	topP            float32
+	timeout         time.Duration
+	chunkTimeout    time.Duration
+	verbose         bool
+	stream          io.Writer
+	client          openai.Client
 }
 
 // Option is a function type used to configure a Client. It allows for setting
@@ -75,9 +73,16 @@ func Model(model string) Option {
 // during its creation and influences how the Client processes and returns
 // generated content. The function accepts format types that can be either a
 // string or an openai.ChatCompletionResponseFormatType.
-func ResponseFormat[Format string | openai.ChatCompletionResponseFormatType](format Format) Option {
+func ResponseFormat(format string) Option {
 	return func(m *Client) {
-		m.responseFormat = openai.ChatCompletionResponseFormatType(format)
+		m.responseFormat = format
+	}
+}
+
+// ReasoningEffort configures the reasoning effort for Responses API ("low", "medium", or "high").
+func ReasoningEffort(effort string) Option {
+	return func(m *Client) {
+		m.reasoningEffort = strings.ToLower(strings.TrimSpace(effort))
 	}
 }
 
@@ -87,14 +92,6 @@ func ResponseFormat[Format string | openai.ChatCompletionResponseFormatType](for
 func MaxTokens(maxTokens int) Option {
 	return func(m *Client) {
 		m.maxTokens = maxTokens
-	}
-}
-
-// Temperature sets the temperature parameter for the Client. The temperature
-// affects the randomness of the model's output during text generation tasks.
-func Temperature(temperature float32) Option {
-	return func(m *Client) {
-		m.temperature = temperature
 	}
 }
 
@@ -150,11 +147,10 @@ func Stream(stream io.Writer) Option {
 // API requests.
 func New(apiToken string, opts ...Option) *Client {
 	c := Client{
-		temperature:  DefaultTemperature,
 		topP:         DefaultTopP,
 		timeout:      DefaultTimeout,
 		chunkTimeout: DefaultChunkTimeout,
-		client:       openai.NewClient(apiToken),
+		client:       openai.NewClient(option.WithAPIKey(apiToken)),
 	}
 	for _, opt := range opts {
 		opt(&c)
@@ -165,7 +161,6 @@ func New(apiToken string, opts ...Option) *Client {
 	}
 
 	c.debug("Model: %s", c.model)
-	c.debug("Temperature: %f", c.temperature)
 	c.debug("TopP: %f", c.topP)
 
 	if c.maxTokens > 0 {
@@ -195,104 +190,52 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		defer cancel()
 	}
 
-	if isChatModel(c.model) {
-		c.debug("Creating chat completion with prompt:\n\n%s", prompt)
+	c.debug("Creating response (Responses API) with prompt:\n\n%s", prompt)
 
-		msgs := []openai.ChatCompletionMessage{{
-			Role:    openai.ChatMessageRoleUser,
-			Content: prompt,
-		}}
-
-		if c.responseFormat == "json_object" {
-			msgs = append([]openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleSystem,
-					Content: "You are a translator for JSON files. You only translate text fields, preserving the JSON structure and keys.",
-				},
-			}, msgs...)
-		}
-
-		var responseFormat *openai.ChatCompletionResponseFormat
-		if c.responseFormat != "" {
-			responseFormat = &openai.ChatCompletionResponseFormat{Type: c.responseFormat}
-		}
-
-		// GPT-5 models do not support temperature/top_p; omit by using zero values
-		temp := c.temperature
-		topP := c.topP
-		if isGPT5Model(c.model) {
-			temp = 0
-			topP = 0
-		}
-
-		stream, err := c.client.CreateChatCompletionStream(ctx, openai.ChatCompletionRequest{
-			Model:          c.model,
-			MaxTokens:      c.maxTokens,
-			Temperature:    temp,
-			TopP:           topP,
-			Messages:       msgs,
-			ResponseFormat: responseFormat,
-		})
-		if err != nil {
-			return "", err
-		}
-		return streamReader(c, stream, c.chunkTimeout).read(ctx, func(stream *openai.ChatCompletionStream) (chunk, error) {
-			resp, err := stream.Recv()
-			if err != nil {
-				return chunk{}, err
-			}
-			return chunk{
-				text:         resp.Choices[0].Delta.Content,
-				finishReason: string(resp.Choices[0].FinishReason),
-			}, nil
-		})
+	// Build request body for Responses API
+	body := map[string]any{
+		"model": c.model,
+		"input": prompt,
+	}
+	if c.maxTokens > 0 {
+		body["max_output_tokens"] = c.maxTokens
+	}
+	if c.responseFormat == "json_object" {
+		body["response_format"] = map[string]any{"type": "json_object"}
+	}
+	if c.reasoningEffort != "" {
+		body["reasoning"] = map[string]any{"effort": c.reasoningEffort}
 	}
 
-	c.debug("Creating completion with prompt:\n\n%s", prompt)
-
-	promptTokens, err := PromptTokens(c.model, prompt)
-	if err != nil {
-		return "", fmt.Errorf("compute prompt tokens: %w", err)
+	// Use typed Responses API
+	reqOpts := []option.RequestOption{}
+	if c.maxTokens > 0 {
+		reqOpts = append(reqOpts, option.WithJSONSet("max_output_tokens", c.maxTokens))
+	}
+	if c.responseFormat == "json_object" {
+		reqOpts = append(reqOpts, option.WithJSONSet("response_format", map[string]any{"type": "json_object"}))
+	}
+	if c.reasoningEffort != "" {
+		reqOpts = append(reqOpts, option.WithJSONSet("reasoning.effort", c.reasoningEffort))
+	}
+	// Only include top_p for models that support it
+	if c.topP > 0 && supportsTopP(c.model) {
+		reqOpts = append(reqOpts, option.WithJSONSet("top_p", c.topP))
 	}
 
-	// -1 because "This model's maximum context length is 8192 tokens. However, you requested 8192 tokens" ???
-	maxTokens := c.maxTokens - promptTokens - 1
-
-	stream, err := c.client.CreateCompletionStream(ctx, openai.CompletionRequest{
-		Model:     c.model,
-		MaxTokens: maxTokens,
-		Temperature: func() float32 {
-			if isGPT5Model(c.model) {
-				return 0
-			}
-			return c.temperature
-		}(),
-		TopP: func() float32 {
-			if isGPT5Model(c.model) {
-				return 0
-			}
-			return c.topP
-		}(),
-		Prompt: prompt,
-	})
+	resp, err := c.client.Responses.New(ctx, responses.ResponseNewParams{
+		Model: c.model,
+		Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
+	}, reqOpts...)
 	if err != nil {
 		return "", err
 	}
-	return streamReader(c, stream, c.chunkTimeout).read(ctx, func(stream *openai.CompletionStream) (chunk, error) {
-		resp, err := stream.Recv()
-		if err != nil {
-			return chunk{}, err
-		}
-		return chunk{
-			text:         resp.Choices[0].Text,
-			finishReason: resp.Choices[0].FinishReason,
-		}, nil
-	})
-}
 
-type chunk struct {
-	text         string
-	finishReason string
+	if text := strings.TrimSpace(resp.OutputText()); text != "" {
+		return text, nil
+	}
+
+	return "", fmt.Errorf("empty response")
 }
 
 func (m *Client) debug(format string, args ...interface{}) {
@@ -310,79 +253,8 @@ func isGPT5Model(model string) bool {
 	return strings.HasPrefix(model, "gpt-5")
 }
 
-type chunkReader[Stream any] struct {
-	client  *Client
-	stream  Stream
-	timeout time.Duration
-}
-
-func streamReader[Stream any](client *Client, stream Stream, timeout time.Duration) *chunkReader[Stream] {
-	return &chunkReader[Stream]{
-		client:  client,
-		stream:  stream,
-		timeout: timeout,
-	}
-}
-
-func (r *chunkReader[Stream]) read(ctx context.Context, getChunk func(Stream) (chunk, error)) (string, error) {
-	var text strings.Builder
-
-	if r.client.stream != nil {
-		fmt.Fprint(r.client.stream, "\n")
-	}
-
-	for {
-		timeout := time.NewTimer(r.timeout)
-
-		chunkC := make(chan chunk)
-		errC := make(chan error)
-
-		fail := func(err error) {
-			select {
-			case <-ctx.Done():
-				return
-			case errC <- err:
-				return
-			}
-		}
-
-		go func() {
-			chunk, err := getChunk(r.stream)
-			if err != nil {
-				fail(err)
-				return
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case chunkC <- chunk:
-			}
-		}()
-
-		select {
-		case <-ctx.Done():
-			timeout.Stop()
-			return text.String(), ctx.Err()
-		case <-timeout.C:
-			return text.String(), fmt.Errorf("token-chunk timeout")
-		case err := <-errC:
-			timeout.Stop()
-			return text.String(), err
-		case chunk := <-chunkC:
-			timeout.Stop()
-			text.WriteString(chunk.text)
-
-			if chunk.text != "" && r.client.stream != nil {
-				fmt.Fprint(r.client.stream, chunk.text)
-			}
-
-			if chunk.finishReason == string(openai.FinishReasonStop) {
-				return text.String(), nil
-			}
-
-			if chunk.finishReason == string(openai.FinishReasonLength) {
-				return text.String(), fmt.Errorf("max tokens exceeded")
-			}
-		}
-	}
+// supportsTopP returns whether top_p should be sent for the given model.
+// GPT-5 family models do not support top_p; omit for those.
+func supportsTopP(model string) bool {
+	return !isGPT5Model(model)
 }

@@ -2,11 +2,8 @@ package openai
 
 import (
 	"errors"
-	"fmt"
-	"strings"
 	"sync"
 
-	"github.com/sashabaranov/go-openai"
 	"github.com/tiktoken-go/tokenizer"
 )
 
@@ -15,42 +12,16 @@ var (
 	codecs    = make(map[string]tokenizer.Codec)
 )
 
-// ChatTokens computes the total number of tokens in a list of
-// ChatCompletionMessages for a given model. It returns an integer representing
-// the total token count and an error if any issues are encountered during
-// tokenization or if the model is unsupported.
-func ChatTokens(model string, messages []openai.ChatCompletionMessage) (int, error) {
+// PromptTokens computes the number of tokens in the given prompt string for the
+// specified model. It returns the token count and any error encountered during
+// tokenization.
+func PromptTokens(model string, prompt string) (int, error) {
 	codec, err := getCodec(model)
 	if err != nil {
 		return 0, err
 	}
-
-	var (
-		perMessage = 3
-		perName    int
-	)
-
-	if strings.HasPrefix(model, "gpt-4") {
-		perName = 1
-	} else if strings.HasPrefix(model, "gpt-3.5") {
-		perName = -1
-	}
-
-	tokens := 3 // every reply is primed with <|start|>assistant<|message|>
-	for _, message := range messages {
-		tokens += perMessage
-		if message.Name != "" {
-			tokens += perName
-		}
-
-		toks, _, err := codec.Encode(message.Content)
-		if err != nil {
-			return tokens, fmt.Errorf("encode message: %w", err)
-		}
-		tokens += len(toks)
-	}
-
-	return tokens + 1, nil
+	toks, _, err := codec.Encode(prompt)
+	return len(toks), err
 }
 
 func getCodec(model string) (tokenizer.Codec, error) {
@@ -75,16 +46,4 @@ func getTokenizer(model string) (tokenizer.Codec, error) {
 		return tokenizer.Get(tokenizer.Cl100kBase)
 	}
 	return codec, err
-}
-
-// PromptTokens computes the number of tokens in the given prompt string for the
-// specified model. It returns the token count and any error encountered during
-// tokenization.
-func PromptTokens(model string, prompt string) (int, error) {
-	codec, err := getCodec(model)
-	if err != nil {
-		return 0, err
-	}
-	toks, _, err := codec.Encode(prompt)
-	return len(toks), err
 }

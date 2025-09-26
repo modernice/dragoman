@@ -43,12 +43,12 @@ type cliOptions struct {
 		Dry          bool               `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
 	} `cmd:"improve"`
 
-	OpenAIKey            string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
-	OpenAIModel          string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-3.5-turbo"`
-	OpenAITemperature    float32 `name:"temperature" help:"OpenAI temperature" env:"OPENAI_TEMPERATURE" default:"0.3"`
-	OpenAITopP           float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
-	OpenAIResponseFormat string  `name:"format" help:"OpenAI response format ('text' or 'json_object')" env:"OPENAI_RESPONSE_FORMAT" default:"text"`
-	OpenAIChunkTimeout   string  `name:"chunk-timeout" help:"Timeout for each token chunk" env:"OPENAI_CHUNK_TIMEOUT"`
+	OpenAIKey             string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
+	OpenAIModel           string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-5-mini"`
+	OpenAIReasoningEffort string  `name:"reasoning-effort" help:"Reasoning effort (low|medium|high)" env:"OPENAI_REASONING_EFFORT" default:""`
+	OpenAITopP            float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
+	OpenAIResponseFormat  string  `name:"format" help:"OpenAI response format ('text' or 'json_object')" env:"OPENAI_RESPONSE_FORMAT" default:"text"`
+	OpenAIChunkTimeout    string  `name:"chunk-timeout" help:"Timeout for each token chunk" env:"OPENAI_CHUNK_TIMEOUT"`
 
 	Timeout time.Duration `short:"T" help:"Timeout for API requests" env:"DRAGOMAN_TIMEOUT" default:"3m"`
 	Verbose bool          `short:"v" help:"Verbose output"`
@@ -116,7 +116,7 @@ func (app *App) translate() {
 	opts := []openai.Option{
 		openai.Model(options.OpenAIModel),
 		openai.ResponseFormat(options.OpenAIResponseFormat),
-		openai.Temperature(options.OpenAITemperature),
+		openai.ReasoningEffort(options.OpenAIReasoningEffort),
 		openai.TopP(options.OpenAITopP),
 		openai.Timeout(options.Timeout),
 		openai.Verbose(options.Verbose),
@@ -252,7 +252,7 @@ func (app *App) improve() {
 	opts := []openai.Option{
 		openai.Model(options.OpenAIModel),
 		openai.ResponseFormat(options.OpenAIResponseFormat),
-		openai.Temperature(options.OpenAITemperature),
+		openai.ReasoningEffort(options.OpenAIReasoningEffort),
 		openai.TopP(options.OpenAITopP),
 		openai.Timeout(options.Timeout),
 		openai.Verbose(options.Verbose),
