@@ -10,7 +10,9 @@ import (
 
 	openai "github.com/openai/openai-go/v2"
 	"github.com/openai/openai-go/v2/option"
+	"github.com/openai/openai-go/v2/packages/param"
 	"github.com/openai/openai-go/v2/responses"
+	"github.com/openai/openai-go/v2/shared"
 )
 
 const (
@@ -202,32 +204,43 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 	c.debug("Creating response with prompt:\n\n%s", prompt)
 
 	// Use typed Responses API
-	reqOpts := []option.RequestOption{}
+	params := responses.ResponseNewParams{
+		Model: c.model,
+		Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
+	}
+
 	if c.maxTokens > 0 {
-		reqOpts = append(reqOpts, option.WithJSONSet("max_output_tokens", c.maxTokens))
+		params.MaxOutputTokens = param.NewOpt(int64(c.maxTokens))
 	}
 	if c.responseFormat == "json_object" {
-		reqOpts = append(reqOpts, option.WithJSONSet("response_format", map[string]any{"type": "json_object"}))
+		params.Text = responses.ResponseTextConfigParam{
+			Format: responses.ResponseFormatTextConfigUnionParam{
+				OfJSONObject: &shared.ResponseFormatJSONObjectParam{
+					Type: "json_object",
+				},
+			},
+		}
 	}
-	if c.reasoningEffort != "" {
-		reqOpts = append(reqOpts, option.WithJSONSet("reasoning.effort", c.reasoningEffort))
-	}
-	if c.reasoningSummary != "" {
-		reqOpts = append(reqOpts, option.WithJSONSet("reasoning.summary", c.reasoningSummary))
+	if c.reasoningEffort != "" || c.reasoningSummary != "" {
+		reasoning := shared.ReasoningParam{}
+		if c.reasoningEffort != "" {
+			reasoning.Effort = shared.ReasoningEffort(c.reasoningEffort)
+		}
+		if c.reasoningSummary != "" {
+			reasoning.Summary = shared.ReasoningSummary(c.reasoningSummary)
+		}
+		params.Reasoning = reasoning
 	}
 	// Only include top_p for models that support it
 	if c.topP > 0 && supportsTopP(c.model) {
-		reqOpts = append(reqOpts, option.WithJSONSet("top_p", c.topP))
+		params.TopP = param.NewOpt(float64(c.topP))
 	}
 
 	var responseText string
 
 	if c.stream != nil {
 		// Use streaming API
-		stream := c.client.Responses.NewStreaming(ctx, responses.ResponseNewParams{
-			Model: c.model,
-			Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
-		}, reqOpts...)
+		stream := c.client.Responses.NewStreaming(ctx, params)
 
 		// Accumulate the full response while streaming
 		var fullText strings.Builder
@@ -266,10 +279,7 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		responseText = fullText.String()
 	} else {
 		// Use synchronous API
-		resp, err := c.client.Responses.New(ctx, responses.ResponseNewParams{
-			Model: c.model,
-			Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
-		}, reqOpts...)
+		resp, err := c.client.Responses.New(ctx, params, nil)
 		if err != nil {
 			return "", err
 		}
