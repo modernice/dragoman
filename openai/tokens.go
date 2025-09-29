@@ -1,7 +1,6 @@
 package openai
 
 import (
-	"errors"
 	"sync"
 
 	"github.com/tiktoken-go/tokenizer"
@@ -41,9 +40,5 @@ func getCodec(model string) (tokenizer.Codec, error) {
 }
 
 func getTokenizer(model string) (tokenizer.Codec, error) {
-	codec, err := tokenizer.ForModel(tokenizer.Model(model))
-	if errors.Is(err, tokenizer.ErrModelNotSupported) {
-		return tokenizer.Get(tokenizer.Cl100kBase)
-	}
-	return codec, err
+	return tokenizer.ForModel(tokenizer.Model(model))
 }

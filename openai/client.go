@@ -39,16 +39,17 @@ const (
 // parameters for token count and topP. A specified timeout can be
 // set for API requests.
 type Client struct {
-	model           string
-	responseFormat  string
-	reasoningEffort string
-	maxTokens       int
-	topP            float32
-	timeout         time.Duration
-	chunkTimeout    time.Duration
-	verbose         bool
-	stream          io.Writer
-	client          openai.Client
+	model            string
+	responseFormat   string
+	reasoningEffort  string
+	reasoningSummary openai.ReasoningSummary
+	maxTokens        int
+	topP             float32
+	timeout          time.Duration
+	chunkTimeout     time.Duration
+	verbose          bool
+	stream           io.Writer
+	client           openai.Client
 }
 
 // Option is a function type used to configure a Client. It allows for setting
@@ -83,6 +84,14 @@ func ResponseFormat(format string) Option {
 func ReasoningEffort(effort string) Option {
 	return func(m *Client) {
 		m.reasoningEffort = strings.ToLower(strings.TrimSpace(effort))
+	}
+}
+
+// ReasoningSummary configures the reasoning summary for the Responses API by
+// setting the [openai.ReasoningSummary] on a [Client].
+func ReasoningSummary(summary openai.ReasoningSummary) Option {
+	return func(m *Client) {
+		m.reasoningSummary = summary
 	}
 }
 
@@ -190,22 +199,7 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		defer cancel()
 	}
 
-	c.debug("Creating response (Responses API) with prompt:\n\n%s", prompt)
-
-	// Build request body for Responses API
-	body := map[string]any{
-		"model": c.model,
-		"input": prompt,
-	}
-	if c.maxTokens > 0 {
-		body["max_output_tokens"] = c.maxTokens
-	}
-	if c.responseFormat == "json_object" {
-		body["response_format"] = map[string]any{"type": "json_object"}
-	}
-	if c.reasoningEffort != "" {
-		body["reasoning"] = map[string]any{"effort": c.reasoningEffort}
-	}
+	c.debug("Creating response with prompt:\n\n%s", prompt)
 
 	// Use typed Responses API
 	reqOpts := []option.RequestOption{}
@@ -218,20 +212,72 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 	if c.reasoningEffort != "" {
 		reqOpts = append(reqOpts, option.WithJSONSet("reasoning.effort", c.reasoningEffort))
 	}
+	if c.reasoningSummary != "" {
+		reqOpts = append(reqOpts, option.WithJSONSet("reasoning.summary", c.reasoningSummary))
+	}
 	// Only include top_p for models that support it
 	if c.topP > 0 && supportsTopP(c.model) {
 		reqOpts = append(reqOpts, option.WithJSONSet("top_p", c.topP))
 	}
 
-	resp, err := c.client.Responses.New(ctx, responses.ResponseNewParams{
-		Model: c.model,
-		Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
-	}, reqOpts...)
-	if err != nil {
-		return "", err
+	var responseText string
+
+	if c.stream != nil {
+		// Use streaming API
+		stream := c.client.Responses.NewStreaming(ctx, responses.ResponseNewParams{
+			Model: c.model,
+			Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
+		}, reqOpts...)
+
+		// Accumulate the full response while streaming
+		var fullText strings.Builder
+		for stream.Next() {
+			event := stream.Current()
+
+			var text string
+			switch event.Type {
+			case "response.reasoning_summary_text.delta":
+				if c.reasoningSummary != "" {
+					text = event.Delta
+				}
+			case "response.reasoning_summary_text.done":
+				if c.reasoningSummary != "" {
+					text = event.Text
+				}
+			case "response.output_text.delta":
+				text = event.Delta
+			case "response.output_text.done":
+				text = event.Text
+			}
+
+			if text != "" {
+				fullText.WriteString(text)
+
+				if _, err := c.stream.Write([]byte(text)); err != nil {
+					return "", fmt.Errorf("failed to write to stream: %w", err)
+				}
+			}
+		}
+
+		if err := stream.Err(); err != nil {
+			return "", err
+		}
+
+		responseText = fullText.String()
+	} else {
+		// Use synchronous API
+		resp, err := c.client.Responses.New(ctx, responses.ResponseNewParams{
+			Model: c.model,
+			Input: responses.ResponseNewParamsInputUnion{OfString: openai.String(prompt)},
+		}, reqOpts...)
+		if err != nil {
+			return "", err
+		}
+
+		responseText = resp.OutputText()
 	}
 
-	if text := strings.TrimSpace(resp.OutputText()); text != "" {
+	if text := strings.TrimSpace(responseText); text != "" {
 		return text, nil
 	}
 
@@ -242,10 +288,6 @@ func (m *Client) debug(format string, args ...interface{}) {
 	if m.verbose {
 		log.Printf("[OpenAI] %s", fmt.Sprintf(format, args...))
 	}
-}
-
-func isChatModel(model string) bool {
-	return strings.HasPrefix(model, "gpt-")
 }
 
 // isGPT5Model returns true if the model string refers to a GPT-5 family model.

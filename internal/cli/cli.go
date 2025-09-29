@@ -17,6 +17,7 @@ import (
 	"github.com/modernice/dragoman"
 	"github.com/modernice/dragoman/internal/chunks"
 	"github.com/modernice/dragoman/openai"
+	oai "github.com/openai/openai-go/v2"
 )
 
 type cliOptions struct {
@@ -43,12 +44,13 @@ type cliOptions struct {
 		Dry          bool               `help:"Write the result to stdout" env:"DRAGOMAN_DRY_RUN"`
 	} `cmd:"improve"`
 
-	OpenAIKey             string  `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
-	OpenAIModel           string  `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-5-mini"`
-	OpenAIReasoningEffort string  `name:"reasoning-effort" help:"Reasoning effort (low|medium|high)" env:"OPENAI_REASONING_EFFORT" default:""`
-	OpenAITopP            float32 `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
-	OpenAIResponseFormat  string  `name:"format" help:"OpenAI response format ('text' or 'json_object')" env:"OPENAI_RESPONSE_FORMAT" default:"text"`
-	OpenAIChunkTimeout    string  `name:"chunk-timeout" help:"Timeout for each token chunk" env:"OPENAI_CHUNK_TIMEOUT"`
+	OpenAIKey              string               `name:"openai-key" help:"OpenAI API key" env:"OPENAI_KEY"`
+	OpenAIModel            string               `name:"openai-model" help:"OpenAI model" env:"OPENAI_MODEL" default:"gpt-5-mini"`
+	OpenAIReasoningEffort  string               `name:"reasoning-effort" help:"Reasoning effort (minimal|low|medium|high)" env:"OPENAI_REASONING_EFFORT" default:"minimal"`
+	OpenAIReasoningSummary oai.ReasoningSummary `name:"reasoning-summary" help:"Reasoning summary (auto|concise|detailed)" env:"OPENAI_REASONING_SUMMARY" default:""`
+	OpenAITopP             float32              `name:"top-p" help:"OpenAI top_p" env:"OPENAI_TOP_P" default:"0.3"`
+	OpenAIResponseFormat   string               `name:"format" help:"OpenAI response format ('text' or 'json_object')" env:"OPENAI_RESPONSE_FORMAT" default:"text"`
+	OpenAIChunkTimeout     string               `name:"chunk-timeout" help:"Timeout for each token chunk" env:"OPENAI_CHUNK_TIMEOUT"`
 
 	Timeout time.Duration `short:"T" help:"Timeout for API requests" env:"DRAGOMAN_TIMEOUT" default:"3m"`
 	Verbose bool          `short:"v" help:"Verbose output"`
@@ -117,6 +119,7 @@ func (app *App) translate() {
 		openai.Model(options.OpenAIModel),
 		openai.ResponseFormat(options.OpenAIResponseFormat),
 		openai.ReasoningEffort(options.OpenAIReasoningEffort),
+		openai.ReasoningSummary(options.OpenAIReasoningSummary),
 		openai.TopP(options.OpenAITopP),
 		openai.Timeout(options.Timeout),
 		openai.Verbose(options.Verbose),
