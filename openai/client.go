@@ -279,7 +279,7 @@ func (c *Client) createCompletion(ctx context.Context, prompt string) (string, e
 		responseText = fullText.String()
 	} else {
 		// Use synchronous API
-		resp, err := c.client.Responses.New(ctx, params, nil)
+		resp, err := c.client.Responses.New(ctx, params)
 		if err != nil {
 			return "", err
 		}
